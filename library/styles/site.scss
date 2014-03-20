@@ -1,0 +1,33 @@
+// site styles
+// 
+@import 'compass/css3';
+@import '_vars';
+
+html, body, #wrap-outer {
+    height: 100%;
+}
+
+.dg {
+    input {
+        line-height: 1.4;
+    }
+
+    .save-row {
+        display: none;
+    }
+
+    &.main.a.has-save > ul {
+        margin-top: 0;
+    }
+}
+
+#sim canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+#sim .physics-layer-rocket {
+    z-index: 2;
+}
