@@ -27,9 +27,13 @@ define(
                         ,layer = {
                             id: id
                             ,el: el || document.createElement('canvas')
-                            ,options: Physics.util.extend({
-                                manual: false
-                            }, opts)
+                            ,options: Physics.util.options({
+                                width: this.el.width,
+                                height: this.el.height,
+                                manual: false,
+                                autoResize: true,
+                                follow: null
+                            })( opts )
                         }
                         ;
 
@@ -40,8 +44,8 @@ define(
                     this.el.parentNode.appendChild( layer.el );
                     layer.el.className += ' physics-layer-' + layer.id;
                     layer.ctx = layer.el.getContext('2d');
-                    layer.el.width = this.el.width;
-                    layer.el.height = this.el.height;
+                    layer.el.width = layer.options.width;
+                    layer.el.height = layer.options.height;
 
                     layer.reset = function( arr ){
 
@@ -57,26 +61,23 @@ define(
                         }
                     };
 
-                    layer.drawBody = function( body ){
-                        var ctx = layer.ctx
-                            ,pos = body.state.pos
-                            ,offset = self.options.offset
-                            ,aabb = body.aabb()
-                            ;
-
-                        ctx.save();
-                        ctx.translate(pos.get(0) + offset.get(0), pos.get(1) + offset.get(1));
-                        ctx.rotate(body.state.angular.pos);
-                        ctx.drawImage(view, -view.width/2, -view.height/2);
-                        ctx.restore();
-                    };
-
                     layer.render = function(){
 
-                        var body;
+                        var body
+                            ,scratch = Physics.scratchpad()
+                            ,offset = scratch.vector().set(0, 0)
+                            ;
 
                         if ( layer.options.manual ){
-                            return;
+                            scratch.done();
+                            return layer;
+                        }
+
+                        if ( layer.options.follow ){
+                            offset.vsub( layer.options.follow.state.pos );
+                        }
+                        if ( layer.options.offset ){
+                            offset.vadd( layer.options.offset );
                         }
 
                         layer.ctx.clearRect(0, 0, layer.el.width, layer.el.height);
@@ -85,8 +86,11 @@ define(
                             
                             body = bodies[ i ];
                             view = body.view || ( body.view = self.createView(body.geometry, styles[ body.geometry.name ]) );
-                            layer.drawBody( body );
+                            self.drawBody( body, body.view, layer.ctx, offset );
                         }
+
+                        scratch.done();
+                        return layer;
                     };
 
                     // remember layer
@@ -102,8 +106,10 @@ define(
                     for ( var id in this.layers ){
                         
                         layer = this.layers[ id ];
-                        layer.el.width = width;
-                        layer.el.height = height;
+                        if ( layer.options.autoResize ){
+                            layer.el.width = width;
+                            layer.el.height = height;
+                        }
                     }
                 },
 

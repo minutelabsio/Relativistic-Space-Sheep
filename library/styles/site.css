@@ -21,10 +21,17 @@ html, body, #wrap-outer {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 1;
+  z-index: 2;
 }
 
 /* line 31, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim .physics-layer-rocket {
-  z-index: 2;
+  z-index: 3;
+}
+
+/* line 35, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+#sim .physics-layer-rocket-cam {
+  background: #fff;
+  border: 1px solid #1a1a1a;
+  z-index: 1;
 }

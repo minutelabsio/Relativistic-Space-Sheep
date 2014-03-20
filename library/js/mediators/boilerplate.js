@@ -147,12 +147,6 @@ define(
             
                 }, true);
                 
-                world.add([
-                    Physics.behavior('body-collision-detection'),
-                    Physics.behavior('sweep-prune'),
-                    Physics.behavior('body-impulse-response')
-                ]);
-            
                 // subscribe to ticker to advance the simulation
                 Physics.util.ticker.on(function (time, dt) {
             
@@ -174,6 +168,12 @@ define(
                         ,classed: 'sheep'
                     }));
                 }
+
+                world.add([
+                    Physics.behavior('body-collision-detection'),
+                    Physics.behavior('sweep-prune').applyTo( sheep ),
+                    Physics.behavior('body-impulse-response')
+                ]);
 
                 renderer.layers.main.addToStack( sheep );
 
@@ -258,6 +258,28 @@ define(
                 rocket.edge.applyTo( sheep );
                 world.add( sheep );
                 world.add( rocket.edge );
+
+
+                var rocketCam = renderer.addLayer('rocket-cam', null, {
+                    width: 400
+                    ,height: 400
+                    ,autoResize: false
+                    ,follow: rocket.edge.body
+                    ,offset: Physics.vector(200, 200)
+                });
+
+                var oldRender = rocketCam.render;
+                rocketCam.render = function(){
+
+                    var ctx = rocketCam.ctx
+                        ,aabb = rocket.aabb
+                        ;
+
+                    oldRender();
+                    renderer.drawRect(200, 200, aabb._hw * 2, aabb._hh * 2, rocketStyles, ctx);
+                };
+
+                rocketCam.addToStack( sheep );
             },
 
             addRocket: function( x, y ){

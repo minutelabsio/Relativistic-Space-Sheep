@@ -25,9 +25,15 @@ html, body, #wrap-outer {
     position: absolute;
     top: 0;
     left: 0;
-    z-index: 1;
+    z-index: 2;
 }
 
 #sim .physics-layer-rocket {
-    z-index: 2;
+    z-index: 3;
+}
+
+#sim .physics-layer-rocket-cam {
+    background: #fff;
+    border: 1px solid $deep-grey-dark;
+    z-index: 1;
 }
