@@ -169,13 +169,25 @@ define(
                     }));
                 }
 
+                var gravometer = Physics.body('circle', {
+                    x: viewWidth * 0.5 + 30
+                    ,y: viewHeight * 0.5
+                    ,radius: 5
+                });
+
+                gravometer.view = renderer.createView( gravometer.geometry, 'red' );
+
                 world.add([
-                    Physics.behavior('body-collision-detection'),
-                    Physics.behavior('sweep-prune').applyTo( sheep ),
-                    Physics.behavior('body-impulse-response')
+                    Physics.behavior('body-collision-detection').applyTo( sheep ),
+                    Physics.behavior('sweep-prune'),
+                    Physics.behavior('body-impulse-response'),
+                    gravometer
                 ]);
 
-                renderer.layers.main.addToStack( sheep );
+                renderer.layers.main
+                    .addToStack( sheep )
+                    .addToStack( gravometer )
+                    ;
 
                 // rocket
                 var rocket = self.addRocket(viewWidth * 0.5, viewHeight * 0.5);
@@ -195,6 +207,7 @@ define(
 
                     ctx.clearRect(0, 0, rocketLayer.el.width, rocketLayer.el.height);
                     renderer.drawRect(aabb._pos.get(0), aabb._pos.get(1), aabb._hw * 2, aabb._hh * 2, rocketStyles, ctx);
+                    renderer.drawLine({ x: aabb._pos.get(0), y: aabb._pos.get(1) }, { x: aabb._pos.get(0) + aabb._hw, y: aabb._pos.get(1) }, 'grey', ctx);
                 };
 
                 var drag = false
@@ -249,7 +262,20 @@ define(
                     } else if ( drag ) {
                         rocket.edge.body.state.vel.clone( movePos ).vsub( rocket.pos ).mult( 1/throttleTime );
                     }
+
+                    // dampen the gravometer motion
+                    // gravometer.state.vel.mult(0.99);
                 });
+
+
+                // gravometer constraints
+                var constr = Physics.behavior('verlet-constraints');
+
+                // constr.angleConstraint( rocket.edge.body, rocket.anchor, gravometer, 0.001 );
+                constr.distanceConstraint( rocket.edge.body, gravometer, 0.01 );
+                constr.distanceConstraint( rocket.anchor, gravometer, 0.01 );
+
+                world.add( constr );
                     
                 // explicitly add the edge behavior body to the world
                 rocket.edge.body.treatment = 'kinematic';
@@ -277,9 +303,13 @@ define(
 
                     oldRender();
                     renderer.drawRect(200, 200, aabb._hw * 2, aabb._hh * 2, rocketStyles, ctx);
+                    renderer.drawLine({ x: 200, y: 200 }, { x: 200 + aabb._hw, y: 200 }, 'grey', ctx);
                 };
 
-                rocketCam.addToStack( sheep );
+                rocketCam
+                    .addToStack( sheep )
+                    .addToStack( gravometer )
+                    ;
             },
 
             addRocket: function( x, y ){
@@ -297,13 +327,16 @@ define(
                         ,restitution: 0.4
                         ,cof: 0.8
                     }).applyTo([])
+                    ,anchor = Physics.body('point')
                     ;
 
                 var ret = {
                     aabb: aabb
                     ,edge: edge
                     ,pos: edge.body.state.pos
+                    ,anchor: anchor
                     ,moveTo: function( pos ){
+                        ret.anchor.state.pos.clone( pos ).add( 60, 0 );
                         ret.pos.clone( pos );
                         ret.aabb._pos.clone( pos );
                         ret.edge.setAABB( ret.aabb );

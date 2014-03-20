@@ -21,6 +21,28 @@ html, body, #wrap-outer {
     }
 }
 
+#instructions {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 400px;
+    margin-left: -200px;
+    background: rgba(255,255,255, 0.5);
+    text-align: center;
+}
+
+#sim {
+    &:after {
+        content: 'Rocket Cam';
+        position: absolute;
+        top: 400px - 20px;
+        right: 0;
+        z-index: 100;
+        width: 400px;
+        text-align: center;
+    }
+}
+
 #sim canvas {
     position: absolute;
     top: 0;
@@ -33,7 +55,11 @@ html, body, #wrap-outer {
 }
 
 #sim .physics-layer-rocket-cam {
+    top: 0;
+    left: auto;
+    right: 0;
     background: #fff;
     border: 1px solid $deep-grey-dark;
     z-index: 1;
 }
+

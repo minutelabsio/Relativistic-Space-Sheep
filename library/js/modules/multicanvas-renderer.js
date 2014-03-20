@@ -59,6 +59,7 @@ define(
                         } else {
                             bodies.push( thing );
                         }
+                        return layer;
                     };
 
                     layer.render = function(){
