@@ -1,5 +1,5 @@
 /**
- * PhysicsJS v1.0.0-rc1 - 2014-03-18
+ * PhysicsJS v1.0.0-rc1 - 2014-03-20
  * A modular, extendable, and easy-to-use physics engine for javascript
  * http://wellcaffeinated.net/PhysicsJS
  *
@@ -2436,8 +2436,9 @@ if (!Date.now){
 
         // is the body hidden (not to be rendered)?
         hidden: false,
-        // is the body fixed and imovable?
-        fixed: false,
+        // is the body `dynamic`, `kinematic` or `static`?
+        // http://www.box2d.org/manual.html#_Toc258082973
+        treatment: 'dynamic',
         // body mass
         mass: 1.0,
         // body restitution. How "bouncy" is it?
@@ -2528,7 +2529,10 @@ if (!Date.now){
          */
         accelerate: function( acc ){
 
-            this.state.acc.vadd( acc );
+            if ( this.treatment === 'dynamic' ){
+                this.state.acc.vadd( acc );
+            }
+            
             return this;
         },
 
@@ -2539,6 +2543,10 @@ if (!Date.now){
          * @return {this}
          */
         applyForce: function( force, p ){
+
+            if ( this.treatment !== 'dynamic' ){
+                return this;
+            }
 
             var scratch = Physics.scratchpad()
                 ,r = scratch.vector()
@@ -3899,8 +3907,8 @@ Physics.integrator('verlet', function( parent ){
                 body = bodies[ i ];
                 state = body.state;
 
-                // only integrate if the body isn't fixed
-                if ( !body.fixed ){
+                // only integrate if the body isn't static
+                if ( body.treatment !== 'static' ){
 
                     // Inspired from https://github.com/soulwire/Coffee-Physics
                     // @licence MIT
@@ -3991,8 +3999,8 @@ Physics.integrator('verlet', function( parent ){
                 body = bodies[ i ];
                 state = body.state;
 
-                // only integrate if the body isn't fixed
-                if ( !body.fixed ){
+                // only integrate if the body isn't static
+                if ( body.treatment !== 'static' ){
 
                     // so we need to scale the value by dt so it 
                     // complies with other integration methods
@@ -4731,8 +4739,11 @@ Physics.behavior('body-collision-detection', function( parent ){
      */
     var checkPair = function checkPair( bodyA, bodyB ){
 
-        // don't detect two fixed bodies
-        if ( bodyA.fixed && bodyB.fixed ){
+        // filter out bodies that don't collide with each other
+        if ( 
+            ( bodyA.treatment === 'static' || bodyA.treatment === 'kinematic' ) &&
+            ( bodyB.treatment === 'static' || bodyB.treatment === 'kinematic' )
+        ){
             return false;
         }
 
@@ -4943,8 +4954,8 @@ Physics.behavior('body-impulse-response', function( parent ){
          */
         collideBodies: function(bodyA, bodyB, normal, point, mtrans, contact){
 
-            var fixedA = bodyA.fixed
-                ,fixedB = bodyB.fixed
+            var fixedA = bodyA.treatment === 'static' || bodyA.treatment === 'kinematic'
+                ,fixedB = bodyB.treatment === 'static' || bodyB.treatment === 'kinematic'
                 ,scratch = Physics.scratchpad()
                 // minimum transit vector for each body
                 ,mtv = scratch.vector().clone( mtrans )
@@ -5199,6 +5210,7 @@ Physics.behavior('constant-acceleration', function( parent ){
  * Edge collision detection.
  * Used to detect collisions with the boundaries of an AABB
  * @module behaviors/edge-collision-detection
+ * @requires body/point
  */
 Physics.behavior('edge-collision-detection', function( parent ){
 
@@ -5361,8 +5373,8 @@ Physics.behavior('edge-collision-detection', function( parent ){
             this.setAABB( this.options.aabb );
             this.restitution = this.options.restitution;
             
-            this._dummy = Physics.body('_dummy', function(){}, { 
-                fixed: true,
+            this.body = Physics.body('point', { 
+                treatment: 'static',
                 restitution: this.options.restitution,
                 cof: this.options.cof
             });
@@ -5426,15 +5438,15 @@ Physics.behavior('edge-collision-detection', function( parent ){
                 ,collisions = []
                 ,ret
                 ,bounds = this._edges
-                ,dummy = this._dummy
+                ,dummy = this.body
                 ;
 
             for ( var i = 0, l = bodies.length; i < l; i++ ){
 
                 body = bodies[ i ];
 
-                // don't detect fixed bodies
-                if ( !body.fixed ){
+                // only detect dynamic bodies
+                if ( body.treatment === 'dynamic' ){
                     
                     ret = checkEdgeCollide( body, bounds, dummy );
 
@@ -5468,10 +5480,12 @@ Physics.behavior('interactive', function( parent ){
     var defaults = {
             // the element to monitor
             el: null,
+            // time between move events
+            moveThrottle: 1000 / 100 | 0,
             // minimum velocity clamp
-            minVel: { x: -1, y: -1 },
+            minVel: { x: -5, y: -5 },
             // maximum velocity clamp
-            maxVel: { x: 1, y: 1 }
+            maxVel: { x: 5, y: 5 }
         }
         ,getElementOffset = function( el ){
             var curleft = 0
@@ -5508,7 +5522,10 @@ Physics.behavior('interactive', function( parent ){
          */
         init: function( options ){
             
-            var self = this;
+            var self = this
+                ,prevTreatment
+                ,time
+                ;
 
             // call parent init method
             parent.init.call( this );
@@ -5527,7 +5544,7 @@ Physics.behavior('interactive', function( parent ){
             }
 
             // init events
-            function grab( e ){
+            var grab = function grab( e ){
                 var pos = getCoords( e )
                     ,body
                     ;
@@ -5539,11 +5556,15 @@ Physics.behavior('interactive', function( parent ){
                         // we're trying to grab a body
 
                         // fix the body in place
-                        body.fixed = true;
+                        prevTreatment = body.treatment;
+                        body.treatment = 'kinematic';
+                        body.state.vel.zero();
+                        body.state.angular.vel = 0;
                         // remember the currently grabbed body
                         self.body = body;
                         // remember the mouse offset
-                        self.offset.clone( self.mousePos ).vsub( body.state.pos );
+                        self.mousePos.clone( pos );
+                        self.offset.clone( pos ).vsub( body.state.pos );
 
                         pos.body = body;
                         self._world.emit('interact:grab', pos);
@@ -5553,33 +5574,47 @@ Physics.behavior('interactive', function( parent ){
                         self._world.emit('interact:poke', pos);
                     }
                 }
-            }
+            };
 
-            function move( e ){
-                var pos = getCoords( e )
+            var move = Physics.util.throttle(function move( e ){
+                var pos
+                    ,state
                     ;
 
-                self.mousePosOld.clone( self.mousePos );
-                // get new mouse position
-                self.mousePos.set(pos.x, pos.y);
-            }
+                if ( self.body ){
+                    pos = getCoords( e );
+                    time = Date.now();
 
-            function release( e ){
+                    self.mousePosOld.clone( self.mousePos );
+                    // get new mouse position
+                    self.mousePos.set(pos.x, pos.y);
+                }
+            }, self.options.moveThrottle);
+
+            var release = function release( e ){
                 var pos = getCoords( e )
                     ,body
+                    ,dt = Math.max(Date.now() - time, self.options.moveThrottle)
                     ;
+
+                // get new mouse position
+                self.mousePos.set(pos.x, pos.y);
+
+                // release the body
+                if (self.body){
+                    self.body.treatment = prevTreatment;
+                    // calculate the release velocity
+                    self.body.state.vel.clone( self.mousePos ).vsub( self.mousePosOld ).mult( 1 / dt );
+                    // make sure it's not too big
+                    self.body.state.vel.clamp( self.options.minVel, self.options.maxVel );
+                    self.body = false;
+                }
 
                 if ( self._world ){
 
-                    // release the body
-                    if (self.body){
-                        self.body.fixed = false;
-                        self.body = false;
-                    }
-
                     self._world.emit('interact:release', pos);
                 }
-            }
+            };
 
             this.el.addEventListener('mousedown', grab);
             this.el.addEventListener('touchstart', grab);
@@ -5613,7 +5648,7 @@ Physics.behavior('interactive', function( parent ){
             world.off('integrate:positions', this.behave);
         },
 
-        behave: function(){
+        behave: function( data ){
 
             var self = this
                 ,state
@@ -5622,12 +5657,9 @@ Physics.behavior('interactive', function( parent ){
             if ( self.body ){
 
                 // if we have a body, we need to move it the the new mouse position.
-                // we'll also track the velocity of the mouse movement so that when it's released
-                // the body can be "thrown"
+                // we'll do this by adjusting the velocity so it gets there at the next step
                 state = self.body.state;
-                state.pos.clone( self.mousePos ).vsub( self.offset );
-                state.vel.clone( self.body.state.pos ).vsub( self.mousePosOld ).vadd( self.offset ).mult( 1 / 30 );
-                state.vel.clamp( self.options.minVel, self.options.maxVel );
+                state.vel.clone( self.mousePos ).vsub( self.offset ).vsub( state.pos ).mult( 1 / self.options.moveThrottle );
             }
         }
     };
@@ -5715,193 +5747,6 @@ Physics.behavior('newtonian', function( parent ){
             }
 
             scratch.done();
-        }
-    };
-});
-
-
-// ---
-// inside: src/behaviors/rigid-constraint-manager.js
-
-/**
- * Rigid constraints manager.
- * Handles distance constraints
- * @module behaviors/rigid-constraint-manager
- */
-Physics.behavior('rigid-constraint-manager', function( parent ){
-
-    var defaults = {
-
-        // set a default target length
-        targetLength: 20
-    };
-
-    return {
-
-        /**
-         * Initialization
-         * @param  {Object} options Configuration object
-         * @return {void}
-         */
-        init: function( options ){
-
-            parent.init.call( this );
-            this.options.defaults( defaults );
-            this.options( options );
-
-            this._constraints = [];
-        },
-
-        /**
-         * Connect to world. Automatically called when added to world by the setWorld method
-         * @param  {Object} world The world to connect to
-         * @return {void}
-         */
-        connect: function( world ){
-
-            var intg = world.integrator();
-
-            if ( intg && intg.name.indexOf('verlet') < 0 ){
-
-                throw 'The rigid constraint manager needs a world with a "verlet" compatible integrator.';
-            }
-
-            world.on('integrate:positions', this.resolve, this);
-        },
-
-        /**
-         * Disconnect from world
-         * @param  {Object} world The world to disconnect from
-         * @return {void}
-         */
-        disconnect: function( world ){
-
-            world.off('integrate:positions', this.resolve);
-        },
-
-        /**
-         * Remove all constraints
-         * @return {self}
-         */
-        drop: function(){
-
-            // drop the current constraints
-            this._constraints = [];
-            return this;
-        },
-
-        /**
-         * Constrain two bodies to a target relative distance
-         * @param  {Object} bodyA        First body
-         * @param  {Object} bodyB        Second body
-         * @param  {Number} targetLength (optional) Target length. defaults to target length specified in configuration options
-         * @return {object}              The constraint object, which holds .bodyA and .bodyB references to the bodies, .id the string ID of the constraint, .targetLength the target length
-         */
-        constrain: function( bodyA, bodyB, targetLength ){
-
-            var cst;
-
-            if (!bodyA || !bodyB){
-
-                return false;
-            }
-
-            this._constraints.push(cst = {
-                id: Physics.util.uniqueId('rigid-constraint'),
-                bodyA: bodyA,
-                bodyB: bodyB,
-                targetLength: targetLength || this.options.targetLength
-            });
-
-            return cst;
-        },
-
-        /**
-         * Remove a constraint
-         * @param  {Mixed} indexCstrOrId Either the constraint object, the constraint id, or the numeric index of the constraint
-         * @return {self}
-         */
-        remove: function( indexCstrOrId ){
-
-            var constraints = this._constraints
-                ,isObj
-                ;
-
-            if (typeof indexCstrOrId === 'number'){
-
-                constraints.splice( indexCstrOrId, 1 );
-                return this;   
-            }
-
-            isObj = Physics.util.isObject( indexCstrOrId );
-            
-            for ( var i = 0, l = constraints.length; i < l; ++i ){
-                
-                if ( (isObj && constraints[ i ] === indexCstrOrId) ||
-                    ( !isObj && constraints[ i ].id === indexCstrOrId) ){
-
-                    constraints.splice( i, 1 );
-                    return this;
-                }
-            }
-
-            return this;
-        },
-
-        /**
-         * Resolve constraints
-         * @return {void}
-         */
-        resolve: function(){
-
-            var constraints = this._constraints
-                ,scratch = Physics.scratchpad()
-                ,A = scratch.vector()
-                ,BA = scratch.vector()
-                ,con
-                ,len
-                ,corr
-                ,proportion
-                ;
-
-            for ( var i = 0, l = constraints.length; i < l; ++i ){
-            
-                con = constraints[ i ];
-
-                // move constrained bodies to target length based on their
-                // mass proportions
-                A.clone( con.bodyA.state.pos );
-                BA.clone( con.bodyB.state.pos ).vsub( A );
-                len = BA.norm();
-                corr = ( len - con.targetLength ) / len;
-                
-                BA.mult( corr );
-                proportion = con.bodyB.mass / (con.bodyA.mass + con.bodyB.mass);
-
-                if ( !con.bodyA.fixed ){
-
-                    BA.mult( proportion );
-                    con.bodyA.state.pos.vadd( BA );
-                    BA.mult( 1 / proportion );
-                }
-
-                if ( !con.bodyB.fixed ){
-
-                    BA.mult( 1 - proportion );
-                    con.bodyB.state.pos.vsub( BA );
-                }
-            }
-
-            scratch.done();
-        },
-
-        /**
-         * Get an array of all constraints
-         * @return {Array} The array of constraint objects
-         */
-        getConstraints: function(){
-
-            return [].concat(this._constraints);
         }
     };
 });
@@ -6484,11 +6329,6 @@ Physics.behavior('verlet-constraints', function( parent ){
 
         /**
          * Constrain three bodies to a target relative angle
-         * @param  {Object} bodyA        First body
-         * @param  {Object} bodyB        Second body
-         * @param  {Object} bodyC        Third body
-         * @param  {Number} targetLength (optional) Target length. defaults to target length specified in configuration options
-         * @return {object}              The constraint object, which holds .bodyA and .bodyB references to the bodies, .id the string ID of the constraint, .targetLength the target length
          */
         angleConstraint: function( bodyA, bodyB, bodyC, stiffness, targetAngle ){
 
@@ -6593,17 +6433,17 @@ Physics.behavior('verlet-constraints', function( parent ){
 
                 corr *= -coef * con.stiffness;
 
-                if ( !con.bodyA.fixed && !con.bodyB.fixed && !con.bodyC.fixed ){
+                if ( con.bodyA.treatment === 'dynamic' && con.bodyB.treatment === 'dynamic' && con.bodyC.treatment === 'dynamic' ){
                     invMassSum = 1 / (con.bodyA.mass + con.bodyB.mass + con.bodyC.mass);
                 }
 
-                if ( !con.bodyA.fixed ){
+                if ( con.bodyA.treatment === 'dynamic' ){
 
-                    if ( !con.bodyB.fixed && !con.bodyC.fixed ){
+                    if ( con.bodyB.treatment === 'dynamic' && con.bodyC.treatment === 'dynamic' ){
                         
                         ang = corr * (con.bodyB.mass + con.bodyC.mass) * invMassSum;
 
-                    } else if ( con.bodyB.fixed ){
+                    } else if ( con.bodyB.treatment !== 'dynamic' ){
 
                         ang = corr * con.bodyC.mass / ( con.bodyC.mass + con.bodyA.mass );
 
@@ -6620,13 +6460,13 @@ Physics.behavior('verlet-constraints', function( parent ){
                     con.bodyA.state.pos.translate( trans );
                 }
 
-                if ( !con.bodyC.fixed ){
+                if ( con.bodyC.treatment === 'dynamic' ){
 
-                    if ( !con.bodyA.fixed && !con.bodyB.fixed ){
+                    if ( con.bodyA.treatment === 'dynamic' && con.bodyB.treatment === 'dynamic' ){
                         
                         ang = -corr * (con.bodyB.mass + con.bodyA.mass) * invMassSum;
 
-                    } else if ( con.bodyB.fixed ){
+                    } else if ( con.bodyB.treatment !== 'dynamic' ){
 
                         ang = -corr * con.bodyA.mass / ( con.bodyC.mass + con.bodyA.mass );
                         
@@ -6643,13 +6483,13 @@ Physics.behavior('verlet-constraints', function( parent ){
                     con.bodyC.state.pos.translate( trans );
                 }
 
-                if ( !con.bodyB.fixed ){
+                if ( con.bodyB.treatment === 'dynamic' ){
 
-                    if ( !con.bodyA.fixed && !con.bodyC.fixed ){
+                    if ( con.bodyA.treatment === 'dynamic' && con.bodyC.treatment === 'dynamic' ){
                         
                         ang = corr * (con.bodyA.mass + con.bodyC.mass) * invMassSum;
 
-                    } else if ( con.bodyA.fixed ){
+                    } else if ( con.bodyA.treatment !== 'dynamic' ){
 
                         ang = corr * con.bodyC.mass / ( con.bodyC.mass + con.bodyB.mass );
                         
@@ -6697,24 +6537,24 @@ Physics.behavior('verlet-constraints', function( parent ){
                 corr = coef * con.stiffness * ( len - con.targetLengthSq ) / len;
                 
                 BA.mult( corr );
-                proportion = (con.bodyA.fixed || con.bodyB.fixed) ? 1 : con.bodyB.mass / (con.bodyA.mass + con.bodyB.mass);
+                proportion = (con.bodyA.treatment !== 'dynamic' || con.bodyB.treatment !== 'dynamic') ? 1 : con.bodyB.mass / (con.bodyA.mass + con.bodyB.mass);
 
-                if ( !con.bodyA.fixed ){
+                if ( con.bodyA.treatment === 'dynamic' ){
 
-                    if ( !con.bodyB.fixed ){
+                    if ( con.bodyB.treatment === 'dynamic' ){
                         BA.mult( proportion );
                     }
 
                     con.bodyA.state.pos.vadd( BA );
 
-                    if ( !con.bodyB.fixed ){
+                    if ( con.bodyB.treatment === 'dynamic' ){
                         BA.mult( 1 / proportion );
                     }
                 }
 
-                if ( !con.bodyB.fixed ){
+                if ( con.bodyB.treatment === 'dynamic' ){
 
-                    if ( !con.bodyA.fixed ){
+                    if ( con.bodyA.treatment === 'dynamic' ){
                         BA.mult( 1 - proportion );
                     }
 
@@ -6802,7 +6642,7 @@ Physics.integrator('improved-euler', function( parent ){
                 state = body.state;
 
                 // only integrate if the body isn't fixed
-                if ( !body.fixed ){
+                if ( body.treatment !== 'static' ){
 
                     // Inspired from https://github.com/soulwire/Coffee-Physics
                     // @licence MIT
@@ -6877,7 +6717,7 @@ Physics.integrator('improved-euler', function( parent ){
                 state = body.state;
 
                 // only integrate if the body isn't fixed
-                if ( !body.fixed ){
+                if ( body.treatment !== 'static' ){
 
 
                     // Store previous location.
@@ -7260,13 +7100,14 @@ Physics.renderer('canvas', function( proto ){
          * @param  {Image} view The view for that body
          * @return {void}
          */
-        drawBody: function( body, view ){
+        drawBody: function( body, view, ctx, offset ){
 
-            var ctx = this.ctx
-                ,pos = body.state.pos
-                ,offset = this.options.offset
+            var pos = body.state.pos
                 ,aabb = body.aabb()
                 ;
+
+            offset = offset || this.options.offset;
+            ctx = ctx || this.ctx;
 
             ctx.save();
             ctx.translate(pos.get(0) + offset.get(0), pos.get(1) + offset.get(1));
