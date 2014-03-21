@@ -17,17 +17,40 @@ html, body, #wrap-outer {
 }
 
 /* line 24, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+#viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: url('../images/starfield.png?1395428530') center center;
+}
+
+/* line 33, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #instructions {
   position: absolute;
   bottom: 0;
-  left: 50%;
+  right: 0;
+  z-index: 0;
   width: 400px;
-  margin-left: -200px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.8);
   text-align: center;
 }
 
-/* line 34, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 43, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+#out-of-sight {
+  display: none;
+  position: absolute;
+  bottom: 460px;
+  left: 0;
+  background: #ededed;
+  color: #00258f;
+  padding: 1em 2em;
+  z-index: 2;
+  text-align: center;
+}
+
+/* line 55, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim {
   position: absolute;
   top: 0;
@@ -35,22 +58,21 @@ html, body, #wrap-outer {
   bottom: 0;
   right: 0;
   z-index: 1;
-  background: #000;
 }
-/* line 42, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 62, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim:after {
   content: 'Rocket Cam';
   position: absolute;
-  top: 376px;
-  right: 0;
+  bottom: 2px;
+  left: 0;
   z-index: 100;
   width: 400px;
   text-align: center;
   background: rgba(255, 255, 255, 0.7);
-  z-index: 1;
+  z-index: 4;
 }
 
-/* line 55, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 75, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim canvas {
   position: absolute;
   top: 0;
@@ -58,22 +80,21 @@ html, body, #wrap-outer {
   z-index: 1;
 }
 
-/* line 61, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 81, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim .physics-layer-main {
-  z-index: 3;
-}
-
-/* line 65, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
-#sim .physics-layer-rocket {
   z-index: 2;
 }
 
-/* line 69, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
-#sim .physics-layer-rocket-cam {
-  top: 0;
-  left: auto;
-  right: 0;
-  background: #000;
-  border: 1px solid #ededed;
+/* line 85, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+#sim .physics-layer-rocket {
   z-index: 1;
+}
+
+/* line 89, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+#sim .physics-layer-rocket-cam {
+  top: auto;
+  bottom: 0;
+  background: url('../images/starfield.png?1395428530') center center;
+  border: 1px solid #ededed;
+  z-index: 3;
 }

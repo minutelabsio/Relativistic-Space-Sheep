@@ -62,6 +62,24 @@ define(
                         return layer;
                     };
 
+                    layer.removeFromStack = function( thing ){
+
+                        var i, l;
+
+                        if ( Physics.util.isArray( thing ) ){
+                            for ( i = 0, l = thing.length; i < l; ++i ){
+                                
+                                layer.removeFromStack(thing[ i ]);
+                            }
+                        } else {
+                            i = Physics.util.indexOf( bodies, thing );
+                            if ( i > -1 ){
+                                bodies.splice( i, 1 );
+                            }
+                        }
+                        return layer;
+                    };
+
                     layer.render = function( clear ){
 
                         var body
