@@ -327,7 +327,9 @@ define(
                         ,restitution: 0.4
                         ,cof: 0.8
                     }).applyTo([])
-                    ,anchor = Physics.body('point')
+                    ,anchor = Physics.body('point', {
+                        treatment: 'static'
+                    })
                     ;
 
                 var ret = {
