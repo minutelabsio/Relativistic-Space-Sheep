@@ -32,14 +32,23 @@ html, body, #wrap-outer {
 }
 
 #sim {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    z-index: 1;
+    background: #000;
     &:after {
         content: 'Rocket Cam';
         position: absolute;
-        top: 400px - 20px;
+        top: 400px - 24px;
         right: 0;
         z-index: 100;
         width: 400px;
         text-align: center;
+        background: rgba(255,255,255,0.7);
+        z-index: 1;
     }
 }
 
@@ -47,19 +56,22 @@ html, body, #wrap-outer {
     position: absolute;
     top: 0;
     left: 0;
-    z-index: 2;
+    z-index: 1;
+}
+#sim .physics-layer-main {
+    z-index: 3;
 }
 
 #sim .physics-layer-rocket {
-    z-index: 3;
+    z-index: 2;
 }
 
 #sim .physics-layer-rocket-cam {
     top: 0;
     left: auto;
     right: 0;
-    background: #fff;
-    border: 1px solid $deep-grey-dark;
+    background: #000;
+    border: 1px solid $grey-light;
     z-index: 1;
 }
 
