@@ -1,5 +1,5 @@
 /**
- * PhysicsJS v1.0.0-rc1 - 2014-03-20
+ * PhysicsJS v1.0.0-rc1 - 2014-03-21
  * A modular, extendable, and easy-to-use physics engine for javascript
  * http://wellcaffeinated.net/PhysicsJS
  *
@@ -3155,7 +3155,7 @@ Physics.geometry.nearestPointOnLine = function nearestPointOnLine( pt, linePt1, 
             for ( var i = 0, l = bodies.length; i < l; ++i ){
                 
                 body = bodies[ i ];
-                view = body.view || ( body.view = this.createView(body.geometry) );
+                view = body.view || ( body.view = this.createView(body.geometry, body.styles) );
 
                 if ( !body.hidden ){
                     this.drawBody( body, view );
@@ -7022,7 +7022,7 @@ Physics.renderer('canvas', function( proto ){
          */
         createView: function( geometry, styles ){
 
-            var view = new Image()
+            var view
                 ,aabb = geometry.aabb()
                 ,hw = aabb.halfWidth + Math.abs(aabb.pos.x)
                 ,hh = aabb.halfHeight + Math.abs(aabb.pos.y)
@@ -7034,6 +7034,13 @@ Physics.renderer('canvas', function( proto ){
                 ;
 
             styles = styles || this.options.styles[ name ];
+
+            // must want an image
+            if ( styles.src ){
+                view = new Image( styles.width, styles.height );
+                view.src = styles.src;
+                return view;
+            }
 
             x += styles.lineWidth | 0;
             y += styles.lineWidth | 0;
@@ -7066,9 +7073,8 @@ Physics.renderer('canvas', function( proto ){
 
             hiddenCtx.restore();
 
-            view.src = hiddenCanvas.toDataURL("image/png");
-            view.width = hiddenCanvas.width;
-            view.height = hiddenCanvas.height;
+            view = new Image( hiddenCanvas.width, hiddenCanvas.height );
+            view.src = hiddenCanvas.toDataURL('image/png');
             return view;
         },
 
@@ -7117,10 +7123,10 @@ Physics.renderer('canvas', function( proto ){
 
             if ( this.options.debug ){
                 // draw bounding boxes
-                this.drawRect( aabb.pos.x, aabb.pos.y, 2 * aabb.x, 2 * aabb.y, 'rgba(100, 255, 100, 0.3)' );
+                this.drawRect( aabb.pos.x, aabb.pos.y, 2 * aabb.x, 2 * aabb.y, 'rgba(0, 0, 255, 0.3)' );
                 
                 // draw also paths
-                body._debugView = body._debugView || this.createView(body.geometry, 'rgba(0, 255, 0, 0.5)');
+                body._debugView = body._debugView || this.createView(body.geometry, 'rgba(255, 0, 0, 0.5)');
                 ctx.save();
                 ctx.translate(pos.get(0) + offset.get(0), pos.get(1) + offset.get(1));
                 ctx.rotate(body.state.angular.pos);

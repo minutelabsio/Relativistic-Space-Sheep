@@ -275,6 +275,7 @@ define(
                 document.getElementById('catch-up').addEventListener('mousedown', function( e ){
                     spaceCamBody.state.pos.clone( rocket.pos );
                     spaceCamBody.state.vel.clone( rocket.edge.body.state.vel );
+                    document.getElementById('out-of-sight').style.display = 'none';
                 });
 
                 function debrisField( body, radius ){
