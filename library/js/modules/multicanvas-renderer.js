@@ -62,7 +62,25 @@ define(
                         return layer;
                     };
 
-                    layer.render = function(){
+                    layer.removeFromStack = function( thing ){
+
+                        var i, l;
+
+                        if ( Physics.util.isArray( thing ) ){
+                            for ( i = 0, l = thing.length; i < l; ++i ){
+                                
+                                layer.removeFromStack(thing[ i ]);
+                            }
+                        } else {
+                            i = Physics.util.indexOf( bodies, thing );
+                            if ( i > -1 ){
+                                bodies.splice( i, 1 );
+                            }
+                        }
+                        return layer;
+                    };
+
+                    layer.render = function( clear ){
 
                         var body
                             ,scratch = Physics.scratchpad()
@@ -77,16 +95,19 @@ define(
                         if ( layer.options.follow ){
                             offset.vsub( layer.options.follow.state.pos );
                         }
+
                         if ( layer.options.offset ){
                             offset.vadd( layer.options.offset );
                         }
 
-                        layer.ctx.clearRect(0, 0, layer.el.width, layer.el.height);
+                        if ( clear !== false ){
+                            layer.ctx.clearRect(0, 0, layer.el.width, layer.el.height);
+                        }
 
                         for ( var i = 0, l = bodies.length; i < l; ++i ){
                             
                             body = bodies[ i ];
-                            view = body.view || ( body.view = self.createView(body.geometry, styles[ body.geometry.name ]) );
+                            view = body.view || ( body.view = self.createView(body.geometry, body.styles || styles[ body.geometry.name ]) );
                             self.drawBody( body, body.view, layer.ctx, offset );
                         }
 

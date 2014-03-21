@@ -1,11 +1,13 @@
 define(
     [
+        'require',
         'plugins/domready',
         'moddef',
         'physicsjs',
         'modules/multicanvas-renderer'
     ],
     function(
+        require,
         domReady,
         M,
         Physics,
@@ -48,8 +50,8 @@ define(
 
                 return { left: curleft, top: curtop };
             }
-            ,getCoords = function( e ){
-                var offset = getElementOffset( e.target )
+            ,getCoords = function( e, target ){
+                var offset = getElementOffset( target || e.target )
                     ,obj = ( e.changedTouches && e.changedTouches[0] ) || e
                     ,x = obj.pageX - offset.left
                     ,y = obj.pageY - offset.top
@@ -102,8 +104,11 @@ define(
             initPhysics: function( world ){
 
                 var self = this
+                    ,i
+                    ,l
                     ,viewWidth = window.innerWidth
                     ,viewHeight = window.innerHeight
+                    ,sightRadius = Math.max( viewWidth, viewHeight ) * 0.5 * ( 1 + Math.sqrt(2) )
                     ,renderer = Physics.renderer('multicanvas', {
                         el: 'physics',
                         width: viewWidth,
@@ -141,6 +146,7 @@ define(
                     viewHeight = window.innerHeight;
             
                     renderer.resize( viewWidth, viewHeight );
+                    sightRadius = Math.max( viewWidth, viewHeight ) * 0.5;
             
                     viewportBounds = Physics.aabb(0, 0, viewWidth, viewHeight);
                     edgeBounce.setAABB(viewportBounds);
@@ -158,56 +164,70 @@ define(
 
                 var sheep = [];
 
-                for ( var i = 0, l = 5; i < l; ++i ){
+                for ( i = 0, l = 5; i < l; ++i ){
                     
                     sheep.push(Physics.body('circle', {
                         x: Math.random() * viewWidth
                         ,y: Math.random() * viewHeight
                         // ,vx: Math.random() * 0.1
-                        ,radius: 5
+                        ,radius: 12
                         ,classed: 'sheep'
+                        ,styles: {
+                            src: require.toUrl( '../../images/Sheep.png' )
+                        }
                     }));
                 }
-
-                var gravometer = Physics.body('circle', {
-                    x: viewWidth * 0.5 + 30
-                    ,y: viewHeight * 0.5
-                    ,radius: 5
-                });
-
-                gravometer.view = renderer.createView( gravometer.geometry, 'red' );
 
                 world.add([
                     Physics.behavior('body-collision-detection').applyTo( sheep ),
                     Physics.behavior('sweep-prune'),
-                    Physics.behavior('body-impulse-response'),
-                    gravometer
+                    Physics.behavior('body-impulse-response')
                 ]);
 
-                renderer.layers.main
-                    .addToStack( sheep )
-                    .addToStack( gravometer )
-                    ;
+                var spaceCamBody = Physics.body('point', {
+                    x: viewWidth * 0.5
+                    ,y: viewHeight * 0.5
+                    ,treatment: 'kinematic'
+                });
+
+                world.add( spaceCamBody );
 
                 // rocket
                 var rocket = self.addRocket(viewWidth * 0.5, viewHeight * 0.5);
 
+                renderer.layers.main
+                    .addToStack( sheep )
+                    .addToStack( rocket.gravometer )
+                    .options({ 
+                        follow: spaceCamBody
+                        ,offset: Physics.vector(viewWidth * 0.5, viewHeight * 0.5) 
+                    })
+                    ;
+
                 // rocket rendering
-                var rocketLayer = renderer.addLayer('rocket');
-                var rocketStyles = {
-                    lineWidth: 2
-                    ,strokeStyle: 'black'
-                    ,fillStyle: 'rgba(0,0,0,0)'
-                };
+                var rocketLayer = renderer.addLayer('rocket', null, {
+                    follow: spaceCamBody
+                    ,offset: Physics.vector(viewWidth * 0.5, viewHeight * 0.5)
+                });
                 rocketLayer.render = function(){
 
                     var ctx = rocketLayer.ctx
                         ,aabb = rocket.aabb
+                        ,scratch = Physics.scratchpad()
+                        ,offset = scratch.vector().set(0, 0)
                         ;
 
+                    if ( rocketLayer.options.follow ){
+                        offset.vsub( rocketLayer.options.follow.state.pos );
+                    }
+
+                    if ( rocketLayer.options.offset ){
+                        offset.vadd( rocketLayer.options.offset );
+                    }
+
                     ctx.clearRect(0, 0, rocketLayer.el.width, rocketLayer.el.height);
-                    renderer.drawRect(aabb._pos.get(0), aabb._pos.get(1), aabb._hw * 2, aabb._hh * 2, rocketStyles, ctx);
-                    renderer.drawLine({ x: aabb._pos.get(0), y: aabb._pos.get(1) }, { x: aabb._pos.get(0) + aabb._hw, y: aabb._pos.get(1) }, 'grey', ctx);
+                    rocket.drawTo(aabb._pos.get(0) + offset.get(0), aabb._pos.get(1) + offset.get(1), ctx, renderer);
+                    scratch.done();
                 };
 
                 var drag = false
@@ -216,42 +236,124 @@ define(
                     ,movePos = Physics.vector()
                     ,throttleTime = 1000 / 60 | 0
                     ;
-                rocketLayer.el.addEventListener('mousedown', function(e){
-                    var pos = getCoords( e )
-                        ;
 
-                    if ( rocket.aabb.contains( pos ) ){
+                renderer.el.parentNode.addEventListener('mousedown', function(e){
+                    var pos = getCoords( e, renderer.el.parentNode );
+                    offset.clone( pos ).sub( viewWidth/2, viewHeight/2 ).vadd( spaceCamBody.state.pos );
+
+                    if ( rocket.outerAABB.contains( offset ) ){
 
                         drag = true;
                         offset.clone( pos ).vsub( rocket.pos );
-                        movePos
-                            .clone( getCoords( e ) )
-                            .vsub( offset )
-                            ;
+                        movePos.clone( rocket.pos );
 
                     } else {
                         thrust = true;
                     }
                 });
 
-                rocketLayer.el.addEventListener('mousemove', Physics.util.throttle(function(e){
+                renderer.el.parentNode.addEventListener('mousemove', Physics.util.throttle(function(e){
                     var pos
                         ;
 
                     if ( drag ){
 
                         movePos
-                            .clone( getCoords( e ) )
+                            .clone( getCoords( e, renderer.el.parentNode ) )
                             .vsub( offset )
                             ;
                     }
+
                 }, throttleTime));
 
-                rocketLayer.el.addEventListener('mouseup', function(e){
+                renderer.el.parentNode.addEventListener('mouseup', function(e){
                     drag = false;
-                    rocket.edge.body.state.vel.zero();
+                    // rocket.edge.body.state.vel.zero();
                     thrust = false;
                 });
+
+                document.getElementById('catch-up').addEventListener('mousedown', function( e ){
+                    spaceCamBody.state.pos.clone( rocket.pos );
+                    spaceCamBody.state.vel.clone( rocket.edge.body.state.vel );
+                    document.getElementById('out-of-sight').style.display = 'none';
+                });
+
+                function debrisField( body, radius ){
+                    var debris = [];
+                    function createDebris( x, y ){
+
+                        cleanDebris();
+
+                        if ( debris.length > 6 ){
+                            return;
+                        }
+
+                        var scratch = Physics.scratchpad()
+                            ,r = scratch.vector()
+                            ;
+
+                        if ( x || y ){
+                            r.set( x, y );
+                        } else {
+                            r.clone( body.state.vel )
+                                .normalize()
+                                .mult( sightRadius + 200 )
+                                .add( body.state.pos.get(0) + (Math.random() - 0.5) * radius, body.state.pos.get(1) )
+                                ;
+                        }
+                        
+                        var d = Physics.body('convex-polygon', {
+                            x: r.get(0)
+                            ,y: r.get(1)
+                            ,vertices: [
+                                { x: 0, y: 0 }
+                                ,{ x: 4, y: 10 }
+                                ,{ x: 15, y: 8 }
+                                ,{ x: 15, y: 0 }
+                            ]
+                            ,vx: (Math.random() - 0.5) * 0.1
+                            ,vy: (Math.random() - 0.5) * 0.1
+                            ,angularVelocity: Math.random() * 0.01
+                            ,styles: 'grey'
+                        });
+
+                        debris.push( d );
+                        world.add( d );
+                        renderer.layers.main.addToStack( d );
+                        renderer.layers[ 'rocket-cam' ].addToStack( d );
+                        scratch.done();
+                    };
+
+                    for ( i = 0, l = 6; i < l; ++i ){
+                        
+                        createDebris( viewWidth * Math.random(), viewHeight * Math.random(), spaceCamBody );
+                    }
+
+                    // clean up debris
+                    function cleanDebris(){
+                        var d, i, l;
+                        for ( i = 0, l = debris.length; i < l; ++i ){
+                            d = debris[ i ];
+                            if ( d.state.pos.dist( body.state.pos ) > radius ){
+                                debris.splice( i, 1 );
+                                i--;
+                                l--;
+                                renderer.layers.main.removeFromStack( d );
+                                renderer.layers[ 'rocket-cam' ].removeFromStack( d );
+                                world.remove( d );
+                            }
+                        }
+                    }
+
+                    setInterval(createDebris, 1000);
+                }
+
+                // show rocket out of sight message if needed
+                setInterval(function(){
+                    if ( rocket.pos.dist( spaceCamBody.state.pos ) > sightRadius ){
+                        document.getElementById('out-of-sight').style.display = 'block';
+                    }
+                }, 1000);
 
                 world.on('integrate:positions', function( data ){
 
@@ -260,26 +362,32 @@ define(
                     if ( thrust ){
                         rocket.edge.body.state.acc.set(0, -0.0001);
                     } else if ( drag ) {
-                        rocket.edge.body.state.vel.clone( movePos ).vsub( rocket.pos ).mult( 1/throttleTime );
+                        rocket.edge.body.state.vel.clone( movePos ).vsub( rocket.pos ).mult( 1/throttleTime ).vadd( spaceCamBody.state.vel );
+                        movePos.vadd( spaceCamBody.state.vel.mult( data.dt ) );
+                        offset.vsub( spaceCamBody.state.vel );
+                        spaceCamBody.state.vel.mult( 1/data.dt )
                     }
 
+                    // var scratch = Physics.scratchpad()
+                    //     ,v = scratch.vector()
+                    //     ;
+
                     // dampen the gravometer motion
-                    // gravometer.state.vel.mult(0.99);
+                    // v.clone( rocket.gravometer.state.pos ).vsub( rocket.gravometer.state.old.pos );
+                    // v.mult(1e-1 );
+                    // rocket.gravometer.state.pos.vsub( v );
+                    // rocket.gravometer.state.vel.mult( 0.9999 );
+
+                    // scratch.done();
                 });
 
-
-                // gravometer constraints
-                var constr = Physics.behavior('verlet-constraints');
-
-                // constr.angleConstraint( rocket.edge.body, rocket.anchor, gravometer, 0.001 );
-                constr.distanceConstraint( rocket.edge.body, gravometer, 0.01 );
-                constr.distanceConstraint( rocket.anchor, gravometer, 0.01 );
-
-                world.add( constr );
-                    
                 // explicitly add the edge behavior body to the world
                 rocket.edge.body.treatment = 'kinematic';
-                world.add( rocket.edge.body );
+                world.add([ 
+                    rocket.edge.body
+                    ,rocket.gravometer
+                    ,rocket.constr
+                ]);
 
                 rocket.edge.applyTo( sheep );
                 world.add( sheep );
@@ -301,15 +409,18 @@ define(
                         ,aabb = rocket.aabb
                         ;
 
-                    oldRender();
-                    renderer.drawRect(200, 200, aabb._hw * 2, aabb._hh * 2, rocketStyles, ctx);
-                    renderer.drawLine({ x: 200, y: 200 }, { x: 200 + aabb._hw, y: 200 }, 'grey', ctx);
+                    ctx.clearRect(0, 0, rocketCam.el.width, rocketCam.el.height);
+                    rocket.drawTo(200, 200, ctx, renderer);
+                    oldRender( false );
                 };
 
                 rocketCam
                     .addToStack( sheep )
-                    .addToStack( gravometer )
+                    .addToStack( rocket.gravometer )
                     ;
+
+                debrisField( spaceCamBody, sightRadius );
+                debrisField( rocket.edge.body, 400 );
             },
 
             addRocket: function( x, y ){
@@ -330,23 +441,62 @@ define(
                     ,anchor = Physics.body('point', {
                         treatment: 'static'
                     })
+                    ,gravometer = Physics.body('circle', {
+                        x: x
+                        ,y: y - 120
+                        ,radius: 5
+                        ,styles: 'red'
+                    })
+                    ,constr = Physics.behavior('verlet-constraints')
+                    ,rocketStyles = {
+                        lineWidth: 0
+                        ,strokeStyle: 'black'
+                        ,fillStyle: 'rgba(200, 200, 200, 1)'
+                    }
+                    ,outerAABB = Physics.aabb(0, 0, 243, 663)
+                    ,rocketImg = new Image()
+                    ,rocketBg = new Image()
                     ;
+
+                rocketImg.src = require.toUrl('../../images/Rocket.png');
+                rocketBg.src = require.toUrl('../../images/Rocket-Background.png');
 
                 var ret = {
                     aabb: aabb
+                    ,outerAABB: outerAABB
                     ,edge: edge
                     ,pos: edge.body.state.pos
                     ,anchor: anchor
+                    ,gravometer: gravometer
+                    ,constr: constr
                     ,moveTo: function( pos ){
-                        ret.anchor.state.pos.clone( pos ).add( 60, 0 );
+                        ret.anchor.state.pos.clone( pos ).sub( 0, 140 );
                         ret.pos.clone( pos );
                         ret.aabb._pos.clone( pos );
+                        ret.outerAABB._pos.clone( pos );
                         ret.edge.setAABB( ret.aabb );
                         return ret;
+                    }
+                    ,drawTo: function( x, y, ctx, renderer ){
+
+                        // renderer.drawRect(x, y, ret.aabb._hw * 2, ret.aabb._hh * 2, rocketStyles, ctx);
+
+                        ctx.save();
+                        ctx.translate(x, y + 90);
+                        ctx.drawImage(rocketBg, -rocketImg.width/2, -rocketImg.height/2);
+                        // ctx.translate(0, 90);
+                        ctx.drawImage(rocketImg, -rocketImg.width/2, -rocketImg.height/2);
+                        ctx.restore();
+                        
+                        renderer.drawLine({ x: x - 30, y: y - 140 }, { x: x + 30, y: y - 140 }, 'grey', ctx);
                     }
                 };
 
                 ret.moveTo({ x: x, y: y });
+                // constr.angleConstraint( rocket.edge.body, rocket.anchor, gravometer, 0.001 );
+                // constr.distanceConstraint( rocket.edge.body, gravometer, 0.01 );
+                constr.distanceConstraint( anchor, gravometer, 1 );
+
                 return ret;
             },
 
