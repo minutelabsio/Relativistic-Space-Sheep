@@ -33,8 +33,10 @@ require.config({
         'jquery': 'vendor/jquery',
 
         // physics
-        // 'physicsjs': 'vendor/physicsjs/physicsjs-full',
-        'physicsjs': 'vendor/physicsjs-full-0.6.0rc1',
+        'physicsjs': 'vendor/physicsjs/physicsjs-full',
+        // 'physicsjs': 'vendor/physicsjs-full-0.6.0rc1',
+
+        'hammer': 'vendor/hammer',
 
         // controls
         'dat': 'vendor/dat.gui',

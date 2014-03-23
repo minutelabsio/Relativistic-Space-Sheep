@@ -27,7 +27,8 @@ html, body, #wrap-outer {
     left: 0;
     bottom: 0;
     right: 0;
-    background: image-url('starfield.png') center center;
+    background: image-url('nightsky.png') center center;
+    background-size: 1000px;
 }
 
 #instructions {
@@ -86,10 +87,15 @@ html, body, #wrap-outer {
     z-index: 1;
 }
 
+#sim .physics-layer-parallax {
+    z-index: 0;
+}
+
 #sim .physics-layer-rocket-cam {
     top: auto;
     bottom: 0;
-    background: image-url('starfield.png') center center;
+    background: image-url('nightsky.png') center center;
+    background-size: 1000px;
     border: 1px solid $grey-light;
     z-index: 3;
 }
