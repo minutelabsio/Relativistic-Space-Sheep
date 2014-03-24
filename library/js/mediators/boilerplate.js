@@ -98,6 +98,8 @@ define(
                         ,sim = document.getElementById('sim')
                         ;
 
+                    sim.focus();
+                    
                     var hammertime = hammer( sim );
                     hammertime.on('mousewheel', function( e ) { 
                         var zoom = Math.min(Math.abs(e.wheelDelta) / 50, 0.2) * sign(e.wheelDelta);
@@ -123,6 +125,7 @@ define(
                     });
 
                     hammertime.on('touchstart', function( e ){
+                        sim.focus();
                         e.preventDefault();
                     });
 
@@ -166,7 +169,7 @@ define(
                         self.emit('thrust', acc);
                     }
 
-                    document.addEventListener('keydown', function( e ){
+                    sim.addEventListener('keydown', function( e ){
                         switch ( e.keyCode ){
                             case 38: // up
                             case 87: // w
@@ -193,7 +196,7 @@ define(
                         return false;
                     });
 
-                    document.addEventListener('keyup', function( e ){
+                    sim.addEventListener('keyup', function( e ){
                         switch ( e.keyCode ){
                             case 38: // up
                             case 87: // w
