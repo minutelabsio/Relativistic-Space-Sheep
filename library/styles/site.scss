@@ -36,14 +36,41 @@ html, body, #wrap-outer {
     bottom: 0;
     right: 0;
     z-index: 10;
-    padding: 2em;
+    padding: .75em;
     width: 400px;
     background: $grey-light;
     border: 1px solid $grey;
     @include border-radius( 3px );
 
     .btn-group {
+        margin: 0;
+    }
+    .btns {
         margin: 0 0 1em;
+    }
+}
+
+#com-panel {
+    position: absolute;
+    bottom: 354px;
+    left: 1px;
+    z-index: 10;
+
+    .meters {
+        color: $grey-light;
+
+        label {
+            margin-right: 1ex;
+        }
+    }
+
+    &:before {
+        content: 'Rocket Cam';
+        display: block;
+        width: 400px;
+        text-align: center;
+        background: rgba(255,255,255,1);
+        z-index: 4;
     }
 }
 
@@ -66,17 +93,6 @@ html, body, #wrap-outer {
     bottom: 0;
     right: 0;
     z-index: 1;
-    &:after {
-        content: 'Rocket Cam';
-        position: absolute;
-        bottom: 2px;
-        left: 0;
-        z-index: 100;
-        width: 400px;
-        text-align: center;
-        background: rgba(255,255,255,0.7);
-        z-index: 4;
-    }
 }
 
 #sim canvas {

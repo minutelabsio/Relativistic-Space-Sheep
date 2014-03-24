@@ -18,16 +18,6 @@ define(
 
         'use strict';
 
-        var MPColors = [
-            'rgb(18, 84, 151)' // blue-dark
-            // ,'rgb(0, 37, 143)' // deep-blue-dark
-            ,'rgb(167, 42, 34)' // red-dark
-            // ,'rgb(151, 52, 29)' // red-orange-dark
-            ,'rgb(159, 80, 31)' // orange-dark
-            ,'rgb(64, 128, 0)' // green-dark
-            ,'rgb(139, 129, 23)' // yellow-dark
-        ];
-
         function logerr( err ){
             window.console.error( err );
         }
@@ -229,7 +219,8 @@ define(
                     sheep.push(Physics.body('circle', {
                         x: Math.random() * viewWidth
                         ,y: Math.random() * viewHeight
-                        // ,vx: Math.random() * 0.1
+                        ,vx: Math.random() * 0.1
+                        ,vy: Math.random() * 0.1
                         ,radius: 12
                         ,classed: 'sheep'
                         ,styles: {
@@ -499,7 +490,7 @@ define(
                     ,height: 400
                     ,autoResize: false
                     ,follow: rocket.edge.body
-                    ,offset: Physics.vector(200, 200)
+                    ,offset: Physics.vector(200, 160)
                 });
 
                 var oldRender = rocketCam.render;
@@ -507,10 +498,11 @@ define(
 
                     var ctx = rocketCam.ctx
                         ,aabb = rocket.aabb
+                        ,offset = rocketCam.options.offset
                         ;
 
                     ctx.clearRect(0, 0, rocketCam.el.width, rocketCam.el.height);
-                    rocket.drawTo(200, 200, ctx, renderer);
+                    rocket.drawTo(offset.get(0), offset.get(1), ctx, renderer);
                     oldRender( false );
                 };
 
@@ -519,11 +511,65 @@ define(
                     // .addToStack( rocket.gravometer )
                     ;
 
+                // water
+                //
+
+                var water = [];
+                setInterval(function(){
+                    var w = Physics.body('circle', {
+                        tag: 'water'
+                        ,x: - 45
+                        ,y: - 60
+                        ,vx: 0.02
+                        ,radius: 3
+                        ,styles: {
+                            strokeWidth: 0
+                            ,fillStyle: 'rgba(40, 136, 228, 0.85)'
+                        }
+                    });
+                    w.state.pos.vadd( rocket.edge.body.state.pos );
+                    w.state.vel.vadd( rocket.edge.body.state.vel );
+                    water.push( w );
+                    world.add( w );
+                    renderer.layers.main.addToStack( w );
+                    rocketCam.addToStack( w );
+                    rocket.edge.applyTo( water.concat(sheep) );
+                }, 1000);
+
+                world.on('collisions:detected', function( data ){
+
+                    var col, w;
+
+                    for ( var i = 0, l = data.collisions.length; i < l; ++i ){
+                        
+                        col = data.collisions[ i ];
+
+                        if ( 
+                            col.bodyA.tag === 'water' && col.bodyB === rocket.edge.body ||
+                            col.bodyB.tag === 'water' && col.bodyA === rocket.edge.body
+                        ){
+                            w = col.bodyA.tag === 'water' ? col.bodyA : col.bodyB;
+
+                            world.remove( w );
+                            water.splice( Physics.util.indexOf( water, w ), 1 );
+                            rocket.edge.applyTo( water.concat(sheep) );
+                            renderer.layers.main.removeFromStack( w );
+                            rocketCam.removeFromStack( w );
+                        }
+                    }                    
+                });
+
                 // debrisField( spaceCamBody, sightRadius, [{ pos: rocket.edge.body.state.pos, halfWidth: 400, halfHeight: 400 }] );
                 // debrisField( rocket.edge.body, 400, [{ pos: spaceCamBody.state.pos, halfWidth: sightRadius, halfHeight: sightRadius }] );
                 
+                var speedEl = document.getElementById('speed-meter')
+                    ,updateSpeed = Physics.util.throttle(function(){
+                        var s = rocket.edge.body.state.vel.norm() * 1000;
+                        speedEl.innerText = s.toFixed(1) + ' px/s';
+                    }, 200)
+                    ;
+
                 // periodic boundary
-                
                 world.on('step', function(){
                     var inv2scale = 0.5 / self.scale;
                     var bounds = {
@@ -536,6 +582,7 @@ define(
                         ,y = rocket.pos.get(1)
                         ,scratch = Physics.scratchpad()
                         ,dr = scratch.vector().set(0, 0)
+                        ,targets
                         ;
 
                     if ( x <= bounds.minX ){
@@ -555,14 +602,19 @@ define(
                         rocket.pos.vadd( dr );
                         rocket.edge.body.state.old.pos.vadd( dr );
                         rocket.moveTo( rocket.pos );
-                        for ( var i = 0, l = sheep.length; i < l; ++i ){
+
+                        targets = rocket.edge.getTargets();
+
+                        for ( var i = 0, l = targets.length; i < l; ++i ){
                             
-                            sheep[ i ].state.pos.vadd( dr );
-                            sheep[ i ].state.old.pos.vadd( dr );
+                            targets[ i ].state.pos.vadd( dr );
+                            targets[ i ].state.old.pos.vadd( dr );
                         }
                     }
 
                     scratch.done();
+
+                    updateSpeed();
                 });
             },
 
@@ -633,7 +685,7 @@ define(
                 ret.moveTo({ x: x, y: y });
                 // constr.angleConstraint( rocket.edge.body, rocket.anchor, gravometer, 0.001 );
                 // constr.distanceConstraint( rocket.edge.body, gravometer, 0.01 );
-                constr.distanceConstraint( anchor, gravometer, 1 );
+                // constr.distanceConstraint( anchor, gravometer, 1 );
 
                 return ret;
             },
