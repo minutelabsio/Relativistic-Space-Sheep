@@ -94,9 +94,13 @@ define(
 
                 self.after('domready', function(){
 
-                    var lastScale;
+                    var lastScale
+                        ,sim = document.getElementById('sim')
+                        ;
 
-                    var hammertime = hammer( document.getElementById('sim') );
+                    sim.focus();
+                    
+                    var hammertime = hammer( sim );
                     hammertime.on('mousewheel', function( e ) { 
                         var zoom = Math.min(Math.abs(e.wheelDelta) / 50, 0.2) * sign(e.wheelDelta);
                         self.scale *= Math.pow(2, zoom);
@@ -121,6 +125,7 @@ define(
                     });
 
                     hammertime.on('touchstart', function( e ){
+                        sim.focus();
                         e.preventDefault();
                     });
 
@@ -148,6 +153,74 @@ define(
                             self.scale *= 0.5;
                             scaleEvent();
                         }
+                    });
+
+                    var keys = {
+                        up: 0
+                        ,down: 0
+                        ,left: 0
+                        ,right: 0
+                    };
+
+                    function thrustEvent(){
+                        var acc = { x: 0, y: 0 };
+                        acc.x = keys.right - keys.left;
+                        acc.y = keys.down - keys.up;
+                        self.emit('thrust', acc);
+                    }
+
+                    sim.addEventListener('keydown', function( e ){
+                        switch ( e.keyCode ){
+                            case 38: // up
+                            case 87: // w
+                                keys.up = 1;
+                                thrustEvent();
+                            break;
+                            case 40: // down
+                            case 83: // s
+                                keys.down = 1;
+                                thrustEvent();
+                            break;
+                            case 37: // left
+                            case 65: // a
+                                keys.left = 1;
+                                thrustEvent();
+                            break;
+                            case 39: // right
+                            case 68: // d
+                                keys.right = 1;
+                                thrustEvent();
+                            break;
+                        }
+
+                        return false;
+                    });
+
+                    sim.addEventListener('keyup', function( e ){
+                        switch ( e.keyCode ){
+                            case 38: // up
+                            case 87: // w
+                                keys.up = 0;
+                                thrustEvent();
+                            break;
+                            case 40: // down
+                            case 83: // s
+                                keys.down = 0;
+                                thrustEvent();
+                            break;
+                            case 37: // left
+                            case 65: // a
+                                keys.left = 0;
+                                thrustEvent();
+                            break;
+                            case 39: // right
+                            case 68: // d
+                                keys.right = 0;
+                                thrustEvent();
+                            break;
+                        }
+
+                        return false;
                     });
                 });
             },
@@ -299,6 +372,7 @@ define(
                 var drag = false
                     ,orig = Physics.vector()
                     ,movePos = Physics.vector()
+                    ,thrustAcc = Physics.vector()
                     ,throttleTime = 1000 / 60 | 0
                     ;
 
@@ -315,8 +389,15 @@ define(
                         movePos.clone( orig );
 
                     } else {
-                        rocket.thrust = true;
+                        // rocket.thrust = true;
                     }
+                });
+
+                self.on('thrust', function( e, acc ){
+                    
+                    rocket.thrust = true;
+                    thrustAcc.clone( acc ).normalize();
+                    rocket.thrust = !thrustAcc.equals( Physics.vector.zero );
                 });
 
                 self.on('drag', Physics.util.throttle(function(ev, e){
@@ -348,114 +429,12 @@ define(
                     rocket.edge.body.state.vel.zero();
                 });
 
-                function debrisField( body, radius, noclean ){
-
-                    noclean = noclean || [];
-                    var debris = [];
-                    var maxDebris = 10;
-
-                    function createDebris( x, y ){
-
-                        if ( debris.length >= maxDebris ){
-                            return;
-                        }
-
-                        var scratch = Physics.scratchpad()
-                            ,r = scratch.vector()
-                            ;
-
-                        if ( x || y ){
-                            r.set( x, y );
-                        } else {
-                            r.clone( body.state.vel )
-                                .add(0, -1e-6)
-                                .normalize()
-                                .mult( sightRadius + 500 * Math.random() )
-                                .add( body.state.pos.get(0) + 2 * (Math.random() - 0.5) * radius, body.state.pos.get(1) )
-                                ;
-                        }
-                        
-                        var d = Physics.body('convex-polygon', {
-                            x: r.get(0)
-                            ,y: r.get(1)
-                            ,vertices: [
-                                { x: 0, y: 0 }
-                                ,{ x: 4, y: 10 }
-                                ,{ x: 15, y: 8 }
-                                ,{ x: 15, y: 0 }
-                            ]
-                            ,vx: (Math.random() - 0.5) * 0.01
-                            ,vy: (Math.random() - 0.5) * 0.01
-                            ,angularVelocity: Math.random() * 0.001
-                            ,styles: 'grey'
-                        });
-
-                        debris.push( d );
-                        world.add( d );
-                        renderer.layers.main.addToStack( d );
-                        renderer.layers[ 'rocket-cam' ].addToStack( d );
-                        scratch.done();
-                    };
-
-                    for ( i = 0, l = maxDebris; i < l; ++i ){
-                        
-                        createDebris( viewWidth * Math.random(), viewHeight * Math.random(), spaceCamBody );
-                    }
-
-                    function removeDebris( i ){
-                        var d = debris.splice( i, 1 )[0];
-                        if ( d ){
-                            renderer.layers.main.removeFromStack( d );
-                            renderer.layers[ 'rocket-cam' ].removeFromStack( d );
-                            world.remove( d );
-                        }
-                    }
-
-                    // clean up debris
-                    var aabb = Physics.aabb();
-                    function cleanDebris(){
-                        var d, i, l, rm, nc;
-                        for ( i = 0, l = debris.length; i < l; ++i ){
-                            rm = true;
-                            d = debris[ i ];
-
-                            for ( var j = 0, ll = noclean.length; j < ll; ++j ){
-                                
-                                nc = noclean[ j ];
-                                aabb.set( nc );
-                                if ( aabb.contains( d.state.pos ) ){
-                                    rm = false;
-                                    break;
-                                }
-                            }
-
-                            if ( d.state.pos.dist( body.state.pos ) < radius ){
-                                rm = false;
-                            }
-
-                            if ( rm ){
-                                removeDebris( i );
-                                i--;
-                                l--;
-                            }
-                        }
-                    }
-
-                    setInterval(function(){
-                        cleanDebris();
-                        for ( var i = 0, l = maxDebris - debris.length; i < l; ++i ){
-                            
-                            createDebris();
-                        }
-                    }, 400);
-                }
-
                 world.on('integrate:positions', function( data ){
 
                     rocket.moveTo( rocket.pos );
                     
                     if ( rocket.thrust ){
-                        rocket.edge.body.state.acc.set(0, -0.0001);
+                        rocket.edge.body.state.acc.clone( thrustAcc ).mult( 0.0001 );
                     } else if ( drag ) {
 
                         if ( self.grabMode ){
@@ -512,7 +491,7 @@ define(
                 //
 
                 var water = [];
-                setInterval(function(){
+                var addWater = Physics.util.throttle(function(){
                     var w = Physics.body('circle', {
                         tag: 'water'
                         ,x: - 45
@@ -532,6 +511,8 @@ define(
                     rocketCam.addToStack( w );
                     rocket.edge.applyTo( water.concat(sheep) );
                 }, 1000);
+
+                world.on('step', addWater);
 
                 world.on('collisions:detected', function( data ){
 

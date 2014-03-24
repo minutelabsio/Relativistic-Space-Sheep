@@ -23,7 +23,7 @@ html, body, #wrap-outer {
   left: 0;
   bottom: 0;
   right: 0;
-  background: url('../images/nightsky.png?1395448799') center center;
+  background: url('../images/nightsky.png?1395691575') center center;
   background-size: 1000px;
 }
 
@@ -57,7 +57,7 @@ html, body, #wrap-outer {
   position: absolute;
   bottom: 354px;
   left: 1px;
-  z-index: 10;
+  z-index: 100;
 }
 /* line 59, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #com-panel .meters {
@@ -128,7 +128,7 @@ html, body, #wrap-outer {
   opacity: 0.9;
   top: auto;
   bottom: 0;
-  background: url('../images/nightsky.png?1395448799') center center;
+  background: url('../images/nightsky.png?1395691575') center center;
   background-size: 1000px;
   border: 1px solid #ededed;
   z-index: 3;
