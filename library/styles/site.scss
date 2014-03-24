@@ -27,17 +27,51 @@ html, body, #wrap-outer {
     left: 0;
     bottom: 0;
     right: 0;
-    background: image-url('starfield.png') center center;
+    background: image-url('nightsky.png') center center;
+    background-size: 1000px;
 }
 
-#instructions {
+#controls {
     position: absolute;
     bottom: 0;
     right: 0;
-    z-index: 0;
+    z-index: 10;
+    padding: .75em;
     width: 400px;
-    background: rgba(255,255,255, 0.8);
-    text-align: center;
+    background: $grey-light;
+    border: 1px solid $grey;
+    @include border-radius( 3px );
+
+    .btn-group {
+        margin: 0;
+    }
+    .btns {
+        margin: 0 0 1em;
+    }
+}
+
+#com-panel {
+    position: absolute;
+    bottom: 354px;
+    left: 1px;
+    z-index: 10;
+
+    .meters {
+        color: $grey-light;
+
+        label {
+            margin-right: 1ex;
+        }
+    }
+
+    &:before {
+        content: 'Rocket Cam';
+        display: block;
+        width: 400px;
+        text-align: center;
+        background: rgba(255,255,255,1);
+        z-index: 4;
+    }
 }
 
 #out-of-sight {
@@ -59,17 +93,6 @@ html, body, #wrap-outer {
     bottom: 0;
     right: 0;
     z-index: 1;
-    &:after {
-        content: 'Rocket Cam';
-        position: absolute;
-        bottom: 2px;
-        left: 0;
-        z-index: 100;
-        width: 400px;
-        text-align: center;
-        background: rgba(255,255,255,0.7);
-        z-index: 4;
-    }
 }
 
 #sim canvas {
@@ -86,10 +109,16 @@ html, body, #wrap-outer {
     z-index: 1;
 }
 
+#sim .physics-layer-parallax {
+    z-index: 0;
+}
+
 #sim .physics-layer-rocket-cam {
+    opacity: 0.9;
     top: auto;
     bottom: 0;
-    background: image-url('starfield.png') center center;
+    background: image-url('nightsky.png') center center;
+    background-size: 1000px;
     border: 1px solid $grey-light;
     z-index: 3;
 }

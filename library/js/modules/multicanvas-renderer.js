@@ -32,7 +32,8 @@ define(
                                 height: this.el.height,
                                 manual: false,
                                 autoResize: true,
-                                follow: null
+                                follow: null,
+                                scale: 1
                             })( opts )
                         }
                         ;
@@ -44,6 +45,7 @@ define(
                     this.el.parentNode.appendChild( layer.el );
                     layer.el.className += ' physics-layer-' + layer.id;
                     layer.ctx = layer.el.getContext('2d');
+                    layer.ctx.scale( 1, 1 );
                     layer.el.width = layer.options.width;
                     layer.el.height = layer.options.height;
 
@@ -85,6 +87,7 @@ define(
                         var body
                             ,scratch = Physics.scratchpad()
                             ,offset = scratch.vector().set(0, 0)
+                            ,scale = layer.options.scale
                             ;
 
                         if ( layer.options.manual ){
@@ -92,17 +95,20 @@ define(
                             return layer;
                         }
 
-                        if ( layer.options.follow ){
-                            offset.vsub( layer.options.follow.state.pos );
+                        if ( layer.options.offset ){
+                            offset.vadd( layer.options.offset ).mult( 1/scale );
                         }
 
-                        if ( layer.options.offset ){
-                            offset.vadd( layer.options.offset );
+                        if ( layer.options.follow ){
+                            offset.vsub( layer.options.follow.state.pos );
                         }
 
                         if ( clear !== false ){
                             layer.ctx.clearRect(0, 0, layer.el.width, layer.el.height);
                         }
+
+                        layer.ctx.save();
+                        layer.ctx.scale( scale, scale );
 
                         for ( var i = 0, l = bodies.length; i < l; ++i ){
                             
@@ -110,6 +116,7 @@ define(
                             view = body.view || ( body.view = self.createView(body.geometry, body.styles || styles[ body.geometry.name ]) );
                             self.drawBody( body, body.view, layer.ctx, offset );
                         }
+                        layer.ctx.restore();
 
                         scratch.done();
                         return layer;

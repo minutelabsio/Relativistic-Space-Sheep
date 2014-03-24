@@ -3,6 +3,7 @@ define(
         'require',
         'plugins/domready',
         'moddef',
+        'hammer',
         'physicsjs',
         'modules/multicanvas-renderer'
     ],
@@ -10,21 +11,12 @@ define(
         require,
         domReady,
         M,
+        hammer,
         Physics,
         _mcr
     ) {
 
         'use strict';
-
-        var MPColors = [
-            'rgb(18, 84, 151)' // blue-dark
-            // ,'rgb(0, 37, 143)' // deep-blue-dark
-            ,'rgb(167, 42, 34)' // red-dark
-            // ,'rgb(151, 52, 29)' // red-orange-dark
-            ,'rgb(159, 80, 31)' // orange-dark
-            ,'rgb(64, 128, 0)' // green-dark
-            ,'rgb(139, 129, 23)' // yellow-dark
-        ];
 
         function logerr( err ){
             window.console.error( err );
@@ -36,33 +28,29 @@ define(
             return r * stddev + mean;
         };
 
-        var getElementOffset = function( el ){
-                var curleft = 0
-                    ,curtop = 0
-                    ;
+        function sign( n ){
+            return n >= 0 ? 1 : -1;
+        }
 
-                if (el.offsetParent) {
-                    do {
-                        curleft += el.offsetLeft;
-                        curtop += el.offsetTop;
-                    } while (el = el.offsetParent);
-                }
+        function pad(num, size) {
+            var s = '000000000' + num;
+            return s.substr(s.length - size);
+        }
 
-                return { left: curleft, top: curtop };
+        function toggleClass( el, cls ){
+            var classes = el.className.split(' ')
+                ,idx = classes.indexOf( cls )
+                ;
+
+            if ( idx > -1 ){
+                classes.splice( idx, 1 );
+                el.className = classes.join(' ');
+                return false;
+            } else {
+                el.className += ' ' + cls;
+                return true;
             }
-            ,getCoords = function( e, target ){
-                var offset = getElementOffset( target || e.target )
-                    ,obj = ( e.changedTouches && e.changedTouches[0] ) || e
-                    ,x = obj.pageX - offset.left
-                    ,y = obj.pageY - offset.top
-                    ;
-
-                return {
-                    x: x
-                    ,y: y
-                };
-            }
-            ;
+        }
 
         /**
          * Page-level Mediator
@@ -79,15 +67,16 @@ define(
 
                 var self = this;
 
+                self.scale = 0.25;
+                self.minScale = 0.05;
+                self.maxScale = 1;
+
                 self.initEvents();
 
                 domReady(function(){
+                    self.onDomReady();
                     self.resolve('domready');
                 });
-
-                self.after('domready').then(function(){
-                    self.onDomReady();
-                }).otherwise( logerr );
             },
 
             /**
@@ -98,7 +87,69 @@ define(
 
                 var self = this;
 
-                
+                function scaleEvent(){
+                    self.scale = Math.max(self.minScale, Math.min(self.maxScale, self.scale));
+                    self.emit('scale', self.scale);
+                }
+
+                self.after('domready', function(){
+
+                    var lastScale;
+
+                    var hammertime = hammer( document.getElementById('sim') );
+                    hammertime.on('mousewheel', function( e ) { 
+                        var zoom = Math.min(Math.abs(e.wheelDelta) / 50, 0.2) * sign(e.wheelDelta);
+                        self.scale *= Math.pow(2, zoom);
+                        scaleEvent();
+                        e.preventDefault();
+                    });
+
+                    hammertime.on('transformstart', function( e ){
+                        lastScale = self.scale;
+                        e.preventDefault();
+                    });
+
+                    hammertime.on('transform', function( e ){
+                        self.scale = lastScale * e.gesture.scale;
+                        scaleEvent();
+                        e.preventDefault();
+                    });
+
+                    hammertime.on('touch', function( e ){
+                        e.preventDefault();
+                        self.emit('touch', e);
+                    });
+
+                    hammertime.on('touchstart', function( e ){
+                        e.preventDefault();
+                    });
+
+                    hammertime.on('drag', function( e ){
+                        e.preventDefault();
+                        self.emit('drag', e);
+                    });
+
+                    hammertime.on('release', function( e ){
+                        e.preventDefault();
+                        self.emit('release', e);
+                    });
+
+                    // control panel
+                    var controls = hammer( document.getElementById('controls') );
+                    controls.on('touch', function( e ){
+                        if ( e.target.id === 'ctrl-breaks' ){
+                            self.emit('breaks');
+                        } else if ( e.target.id === 'ctrl-grab-mode' ){
+                            self.grabMode = toggleClass(e.target, 'on');
+                        } else if ( e.target.id === 'ctrl-zoom-in'){
+                            self.scale *= 2;
+                            scaleEvent();
+                        } else if ( e.target.id === 'ctrl-zoom-out'){
+                            self.scale *= 0.5;
+                            scaleEvent();
+                        }
+                    });
+                });
             },
 
             initPhysics: function( world ){
@@ -108,7 +159,7 @@ define(
                     ,l
                     ,viewWidth = window.innerWidth
                     ,viewHeight = window.innerHeight
-                    ,sightRadius = Math.max( viewWidth, viewHeight ) * 0.5 * ( 1 + Math.sqrt(2) )
+                    ,sightRadius = Math.max( viewWidth, viewHeight ) * 0.5 * ( Math.sqrt(2) )
                     ,renderer = Physics.renderer('multicanvas', {
                         el: 'physics',
                         width: viewWidth,
@@ -149,7 +200,6 @@ define(
                     sightRadius = Math.max( viewWidth, viewHeight ) * 0.5;
             
                     viewportBounds = Physics.aabb(0, 0, viewWidth, viewHeight);
-                    edgeBounce.setAABB(viewportBounds);
             
                 }, true);
                 
@@ -169,7 +219,8 @@ define(
                     sheep.push(Physics.body('circle', {
                         x: Math.random() * viewWidth
                         ,y: Math.random() * viewHeight
-                        // ,vx: Math.random() * 0.1
+                        ,vx: Math.random() * 0.1
+                        ,vy: Math.random() * 0.1
                         ,radius: 12
                         ,classed: 'sheep'
                         ,styles: {
@@ -190,16 +241,26 @@ define(
                     ,treatment: 'kinematic'
                 });
 
-                world.add( spaceCamBody );
+                var parallaxBody = Physics.body('point', {
+                    x: viewWidth * 0.5
+                    ,y: viewHeight * 0.5
+                    ,treatment: 'kinematic'
+                });
+
+                world.add([
+                    spaceCamBody 
+                    ,parallaxBody
+                ]);
 
                 // rocket
                 var rocket = self.addRocket(viewWidth * 0.5, viewHeight * 0.5);
 
                 renderer.layers.main
                     .addToStack( sheep )
-                    .addToStack( rocket.gravometer )
+                    // .addToStack( rocket.gravometer )
                     .options({ 
                         follow: spaceCamBody
+                        ,scale: self.scale
                         ,offset: Physics.vector(viewWidth * 0.5, viewHeight * 0.5) 
                     })
                     ;
@@ -207,6 +268,7 @@ define(
                 // rocket rendering
                 var rocketLayer = renderer.addLayer('rocket', null, {
                     follow: spaceCamBody
+                    ,scale: self.scale
                     ,offset: Physics.vector(viewWidth * 0.5, viewHeight * 0.5)
                 });
                 rocketLayer.render = function(){
@@ -215,76 +277,86 @@ define(
                         ,aabb = rocket.aabb
                         ,scratch = Physics.scratchpad()
                         ,offset = scratch.vector().set(0, 0)
+                        ,scale = rocketLayer.options.scale
                         ;
+
+                    if ( rocketLayer.options.offset ){
+                        offset.vadd( rocketLayer.options.offset ).mult( 1/scale );
+                    }
 
                     if ( rocketLayer.options.follow ){
                         offset.vsub( rocketLayer.options.follow.state.pos );
                     }
 
-                    if ( rocketLayer.options.offset ){
-                        offset.vadd( rocketLayer.options.offset );
-                    }
-
                     ctx.clearRect(0, 0, rocketLayer.el.width, rocketLayer.el.height);
+                    ctx.save();
+                    ctx.scale( scale, scale );
                     rocket.drawTo(aabb._pos.get(0) + offset.get(0), aabb._pos.get(1) + offset.get(1), ctx, renderer);
+                    ctx.restore();
                     scratch.done();
                 };
 
                 var drag = false
-                    ,thrust = false
-                    ,offset = Physics.vector()
+                    ,orig = Physics.vector()
                     ,movePos = Physics.vector()
                     ,throttleTime = 1000 / 60 | 0
                     ;
 
-                renderer.el.parentNode.addEventListener('mousedown', function(e){
-                    var pos = getCoords( e, renderer.el.parentNode );
-                    offset.clone( pos ).sub( viewWidth/2, viewHeight/2 ).vadd( spaceCamBody.state.pos );
+                self.on('touch', function( ev, e ){
+                    var pos = e.gesture.center;
+                    pos.x = pos.pageX;
+                    pos.y = pos.pageY;
+                    orig.clone( pos ).sub( viewWidth/2, viewHeight/2 ).mult( 1 / self.scale ).vadd( spaceCamBody.state.pos );
 
-                    if ( rocket.outerAABB.contains( offset ) ){
+                    if ( rocket.outerAABB.contains( orig ) ){
 
                         drag = true;
-                        offset.clone( pos ).vsub( rocket.pos );
-                        movePos.clone( rocket.pos );
+                        orig.clone( rocket.pos );
+                        movePos.clone( orig );
 
                     } else {
-                        thrust = true;
+                        rocket.thrust = true;
                     }
                 });
 
-                renderer.el.parentNode.addEventListener('mousemove', Physics.util.throttle(function(e){
-                    var pos
-                        ;
-
+                self.on('drag', Physics.util.throttle(function(ev, e){
+                    var pos = e.gesture.center;
+                    pos.x = pos.pageX;
+                    pos.y = pos.pageY;
+                    
                     if ( drag ){
 
                         movePos
-                            .clone( getCoords( e, renderer.el.parentNode ) )
-                            .vsub( offset )
+                            .clone( orig )
+                            .add( e.gesture.deltaX / self.scale, e.gesture.deltaY / self.scale )
                             ;
                     }
 
                 }, throttleTime));
 
-                renderer.el.parentNode.addEventListener('mouseup', function(e){
+                self.on('release', function( ev, e){
                     drag = false;
-                    // rocket.edge.body.state.vel.zero();
-                    thrust = false;
+                    rocket.thrust = false;
                 });
 
-                document.getElementById('catch-up').addEventListener('mousedown', function( e ){
-                    spaceCamBody.state.pos.clone( rocket.pos );
-                    spaceCamBody.state.vel.clone( rocket.edge.body.state.vel );
-                    document.getElementById('out-of-sight').style.display = 'none';
+                self.on('scale', function( ev, scale ){
+                    renderer.layers.main.options({ scale: scale });
+                    rocketLayer.options({ scale: scale });
                 });
 
-                function debrisField( body, radius ){
+                self.on('breaks', function(){
+                    rocket.edge.body.state.vel.zero();
+                });
+
+                function debrisField( body, radius, noclean ){
+
+                    noclean = noclean || [];
                     var debris = [];
+                    var maxDebris = 10;
+
                     function createDebris( x, y ){
 
-                        cleanDebris();
-
-                        if ( debris.length > 6 ){
+                        if ( debris.length >= maxDebris ){
                             return;
                         }
 
@@ -296,9 +368,10 @@ define(
                             r.set( x, y );
                         } else {
                             r.clone( body.state.vel )
+                                .add(0, -1e-6)
                                 .normalize()
-                                .mult( sightRadius + 200 )
-                                .add( body.state.pos.get(0) + (Math.random() - 0.5) * radius, body.state.pos.get(1) )
+                                .mult( sightRadius + 500 * Math.random() )
+                                .add( body.state.pos.get(0) + 2 * (Math.random() - 0.5) * radius, body.state.pos.get(1) )
                                 ;
                         }
                         
@@ -311,9 +384,9 @@ define(
                                 ,{ x: 15, y: 8 }
                                 ,{ x: 15, y: 0 }
                             ]
-                            ,vx: (Math.random() - 0.5) * 0.1
-                            ,vy: (Math.random() - 0.5) * 0.1
-                            ,angularVelocity: Math.random() * 0.01
+                            ,vx: (Math.random() - 0.5) * 0.01
+                            ,vy: (Math.random() - 0.5) * 0.01
+                            ,angularVelocity: Math.random() * 0.001
                             ,styles: 'grey'
                         });
 
@@ -324,68 +397,83 @@ define(
                         scratch.done();
                     };
 
-                    for ( i = 0, l = 6; i < l; ++i ){
+                    for ( i = 0, l = maxDebris; i < l; ++i ){
                         
                         createDebris( viewWidth * Math.random(), viewHeight * Math.random(), spaceCamBody );
                     }
 
+                    function removeDebris( i ){
+                        var d = debris.splice( i, 1 )[0];
+                        if ( d ){
+                            renderer.layers.main.removeFromStack( d );
+                            renderer.layers[ 'rocket-cam' ].removeFromStack( d );
+                            world.remove( d );
+                        }
+                    }
+
                     // clean up debris
+                    var aabb = Physics.aabb();
                     function cleanDebris(){
-                        var d, i, l;
+                        var d, i, l, rm, nc;
                         for ( i = 0, l = debris.length; i < l; ++i ){
+                            rm = true;
                             d = debris[ i ];
-                            if ( d.state.pos.dist( body.state.pos ) > radius ){
-                                debris.splice( i, 1 );
+
+                            for ( var j = 0, ll = noclean.length; j < ll; ++j ){
+                                
+                                nc = noclean[ j ];
+                                aabb.set( nc );
+                                if ( aabb.contains( d.state.pos ) ){
+                                    rm = false;
+                                    break;
+                                }
+                            }
+
+                            if ( d.state.pos.dist( body.state.pos ) < radius ){
+                                rm = false;
+                            }
+
+                            if ( rm ){
+                                removeDebris( i );
                                 i--;
                                 l--;
-                                renderer.layers.main.removeFromStack( d );
-                                renderer.layers[ 'rocket-cam' ].removeFromStack( d );
-                                world.remove( d );
                             }
                         }
                     }
 
-                    setInterval(createDebris, 1000);
+                    setInterval(function(){
+                        cleanDebris();
+                        for ( var i = 0, l = maxDebris - debris.length; i < l; ++i ){
+                            
+                            createDebris();
+                        }
+                    }, 400);
                 }
-
-                // show rocket out of sight message if needed
-                setInterval(function(){
-                    if ( rocket.pos.dist( spaceCamBody.state.pos ) > sightRadius ){
-                        document.getElementById('out-of-sight').style.display = 'block';
-                    }
-                }, 1000);
 
                 world.on('integrate:positions', function( data ){
 
                     rocket.moveTo( rocket.pos );
                     
-                    if ( thrust ){
+                    if ( rocket.thrust ){
                         rocket.edge.body.state.acc.set(0, -0.0001);
                     } else if ( drag ) {
-                        rocket.edge.body.state.vel.clone( movePos ).vsub( rocket.pos ).mult( 1/throttleTime ).vadd( spaceCamBody.state.vel );
-                        movePos.vadd( spaceCamBody.state.vel.mult( data.dt ) );
-                        offset.vsub( spaceCamBody.state.vel );
-                        spaceCamBody.state.vel.mult( 1/data.dt )
+
+                        if ( self.grabMode ){
+                            rocket.edge.body.state.vel.clone( movePos ).vsub( rocket.pos ).mult( 1/throttleTime ).vadd( spaceCamBody.state.vel );
+                            movePos.vadd( spaceCamBody.state.vel.mult( data.dt ) );
+                            orig.vsub( spaceCamBody.state.vel );
+                            spaceCamBody.state.vel.mult( 1/data.dt );
+                        } else {
+                            rocket.edge.body.state.acc.clone( movePos ).vsub( rocket.edge.body.state.pos ).normalize().mult( 0.001 );
+                        }
                     }
-
-                    // var scratch = Physics.scratchpad()
-                    //     ,v = scratch.vector()
-                    //     ;
-
-                    // dampen the gravometer motion
-                    // v.clone( rocket.gravometer.state.pos ).vsub( rocket.gravometer.state.old.pos );
-                    // v.mult(1e-1 );
-                    // rocket.gravometer.state.pos.vsub( v );
-                    // rocket.gravometer.state.vel.mult( 0.9999 );
-
-                    // scratch.done();
                 });
 
                 // explicitly add the edge behavior body to the world
                 rocket.edge.body.treatment = 'kinematic';
                 world.add([ 
                     rocket.edge.body
-                    ,rocket.gravometer
+                    // ,rocket.gravometer
                     ,rocket.constr
                 ]);
 
@@ -399,7 +487,7 @@ define(
                     ,height: 400
                     ,autoResize: false
                     ,follow: rocket.edge.body
-                    ,offset: Physics.vector(200, 200)
+                    ,offset: Physics.vector(200, 160)
                 });
 
                 var oldRender = rocketCam.render;
@@ -407,20 +495,124 @@ define(
 
                     var ctx = rocketCam.ctx
                         ,aabb = rocket.aabb
+                        ,offset = rocketCam.options.offset
                         ;
 
                     ctx.clearRect(0, 0, rocketCam.el.width, rocketCam.el.height);
-                    rocket.drawTo(200, 200, ctx, renderer);
+                    rocket.drawTo(offset.get(0), offset.get(1), ctx, renderer);
                     oldRender( false );
                 };
 
                 rocketCam
                     .addToStack( sheep )
-                    .addToStack( rocket.gravometer )
+                    // .addToStack( rocket.gravometer )
                     ;
 
-                debrisField( spaceCamBody, sightRadius );
-                debrisField( rocket.edge.body, 400 );
+                // water
+                //
+
+                var water = [];
+                setInterval(function(){
+                    var w = Physics.body('circle', {
+                        tag: 'water'
+                        ,x: - 45
+                        ,y: - 60
+                        ,vx: 0.02
+                        ,radius: 3
+                        ,styles: {
+                            strokeWidth: 0
+                            ,fillStyle: 'rgba(40, 136, 228, 0.85)'
+                        }
+                    });
+                    w.state.pos.vadd( rocket.edge.body.state.pos );
+                    w.state.vel.vadd( rocket.edge.body.state.vel );
+                    water.push( w );
+                    world.add( w );
+                    renderer.layers.main.addToStack( w );
+                    rocketCam.addToStack( w );
+                    rocket.edge.applyTo( water.concat(sheep) );
+                }, 1000);
+
+                world.on('collisions:detected', function( data ){
+
+                    var col, w;
+
+                    for ( var i = 0, l = data.collisions.length; i < l; ++i ){
+                        
+                        col = data.collisions[ i ];
+
+                        if ( 
+                            col.bodyA.tag === 'water' && col.bodyB === rocket.edge.body ||
+                            col.bodyB.tag === 'water' && col.bodyA === rocket.edge.body
+                        ){
+                            w = col.bodyA.tag === 'water' ? col.bodyA : col.bodyB;
+
+                            world.remove( w );
+                            water.splice( Physics.util.indexOf( water, w ), 1 );
+                            rocket.edge.applyTo( water.concat(sheep) );
+                            renderer.layers.main.removeFromStack( w );
+                            rocketCam.removeFromStack( w );
+                        }
+                    }                    
+                });
+
+                // debrisField( spaceCamBody, sightRadius, [{ pos: rocket.edge.body.state.pos, halfWidth: 400, halfHeight: 400 }] );
+                // debrisField( rocket.edge.body, 400, [{ pos: spaceCamBody.state.pos, halfWidth: sightRadius, halfHeight: sightRadius }] );
+                
+                var speedEl = document.getElementById('speed-meter')
+                    ,updateSpeed = Physics.util.throttle(function(){
+                        var s = rocket.edge.body.state.vel.norm() * 1000;
+                        speedEl.innerText = s.toFixed(1) + ' px/s';
+                    }, 200)
+                    ;
+
+                // periodic boundary
+                world.on('step', function(){
+                    var inv2scale = 0.5 / self.scale;
+                    var bounds = {
+                        minX: -viewWidth * inv2scale + rocketLayer.options.offset.get(0) - 120
+                        ,maxX: viewWidth * inv2scale + rocketLayer.options.offset.get(0) + 120
+                        ,minY: -viewHeight * inv2scale + rocketLayer.options.offset.get(1) - 340
+                        ,maxY: viewHeight * inv2scale + rocketLayer.options.offset.get(1) + 340
+                    };
+                    var x = rocket.pos.get(0)
+                        ,y = rocket.pos.get(1)
+                        ,scratch = Physics.scratchpad()
+                        ,dr = scratch.vector().set(0, 0)
+                        ,targets
+                        ;
+
+                    if ( x <= bounds.minX ){
+                        dr.add( bounds.maxX - bounds.minX, 0 );
+                    } else if ( x > bounds.maxX ){
+                        dr.sub( bounds.maxX - bounds.minX, 0 );
+                    }
+
+                    if ( y <= bounds.minY ){
+                        dr.add( 0, bounds.maxY - bounds.minY );
+                    } else if ( y > bounds.maxY ){
+                        dr.sub( 0, bounds.maxY - bounds.minY );
+                    }
+
+                    if ( !dr.equals( Physics.vector.zero ) ){
+
+                        rocket.pos.vadd( dr );
+                        rocket.edge.body.state.old.pos.vadd( dr );
+                        rocket.moveTo( rocket.pos );
+
+                        targets = rocket.edge.getTargets();
+
+                        for ( var i = 0, l = targets.length; i < l; ++i ){
+                            
+                            targets[ i ].state.pos.vadd( dr );
+                            targets[ i ].state.old.pos.vadd( dr );
+                        }
+                    }
+
+                    scratch.done();
+
+                    updateSpeed();
+                });
             },
 
             addRocket: function( x, y ){
@@ -455,11 +647,22 @@ define(
                     }
                     ,outerAABB = Physics.aabb(0, 0, 243, 663)
                     ,rocketImg = new Image()
-                    ,rocketBg = new Image()
+                    ,fires = [
+                        new Image()
+                        ,new Image()
+                        ,new Image()
+                    ]
+                    ,fireIdx = 0
                     ;
 
                 rocketImg.src = require.toUrl('../../images/Rocket.png');
-                rocketBg.src = require.toUrl('../../images/Rocket-Background.png');
+                fires[0].src = require.toUrl('../../images/Fire-1.png');
+                fires[1].src = require.toUrl('../../images/Fire-2.png');
+                fires[2].src = require.toUrl('../../images/Fire-3.png');
+
+                setInterval(function(){
+                    fireIdx = (fireIdx > 1)? 0 : fireIdx + 1;
+                }, 50);
 
                 var ret = {
                     aabb: aabb
@@ -479,23 +682,26 @@ define(
                     }
                     ,drawTo: function( x, y, ctx, renderer ){
 
+                        var fire;
+
                         // renderer.drawRect(x, y, ret.aabb._hw * 2, ret.aabb._hh * 2, rocketStyles, ctx);
 
                         ctx.save();
                         ctx.translate(x, y + 90);
-                        ctx.drawImage(rocketBg, -rocketImg.width/2, -rocketImg.height/2);
                         // ctx.translate(0, 90);
                         ctx.drawImage(rocketImg, -rocketImg.width/2, -rocketImg.height/2);
+                        if ( ret.thrust ){
+                            fire = fires[ fireIdx ];
+                            ctx.drawImage(fire, -fire.width/2, -fire.height/2);
+                        }
                         ctx.restore();
-                        
-                        renderer.drawLine({ x: x - 30, y: y - 140 }, { x: x + 30, y: y - 140 }, 'grey', ctx);
                     }
                 };
 
                 ret.moveTo({ x: x, y: y });
                 // constr.angleConstraint( rocket.edge.body, rocket.anchor, gravometer, 0.001 );
                 // constr.distanceConstraint( rocket.edge.body, gravometer, 0.01 );
-                constr.distanceConstraint( anchor, gravometer, 1 );
+                // constr.distanceConstraint( anchor, gravometer, 1 );
 
                 return ret;
             },
