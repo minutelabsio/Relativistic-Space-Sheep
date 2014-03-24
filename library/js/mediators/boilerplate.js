@@ -47,6 +47,21 @@ define(
             return s.substr(s.length - size);
         }
 
+        function toggleClass( el, cls ){
+            var classes = el.className.split(' ')
+                ,idx = classes.indexOf( cls )
+                ;
+
+            if ( idx > -1 ){
+                classes.splice( idx, 1 );
+                el.className = classes.join(' ');
+                return false;
+            } else {
+                el.className += ' ' + cls;
+                return true;
+            }
+        }
+
         /**
          * Page-level Mediator
          * @module Boilerplate
@@ -89,7 +104,9 @@ define(
 
                 self.after('domready', function(){
 
-                    var hammertime = hammer( document.getElementById('physics') );
+                    var lastScale;
+
+                    var hammertime = hammer( document.getElementById('sim') );
                     hammertime.on('mousewheel', function( e ) { 
                         var zoom = Math.min(Math.abs(e.wheelDelta) / 50, 0.2) * sign(e.wheelDelta);
                         self.scale *= Math.pow(2, zoom);
@@ -97,18 +114,50 @@ define(
                         e.preventDefault();
                     });
 
-                    hammertime.on('touch', function( e ){
+                    hammertime.on('transformstart', function( e ){
+                        lastScale = self.scale;
+                        e.preventDefault();
+                    });
 
+                    hammertime.on('transform', function( e ){
+                        self.scale = lastScale * e.gesture.scale;
+                        scaleEvent();
+                        e.preventDefault();
+                    });
+
+                    hammertime.on('touch', function( e ){
+                        e.preventDefault();
                         self.emit('touch', e);
                     });
 
+                    hammertime.on('touchstart', function( e ){
+                        e.preventDefault();
+                    });
+
                     hammertime.on('drag', function( e ){
+                        e.preventDefault();
                         self.emit('drag', e);
                     });
 
                     hammertime.on('release', function( e ){
-
+                        e.preventDefault();
                         self.emit('release', e);
+                    });
+
+                    // control panel
+                    var controls = hammer( document.getElementById('controls') );
+                    controls.on('touch', function( e ){
+                        if ( e.target.id === 'ctrl-breaks' ){
+                            self.emit('breaks');
+                        } else if ( e.target.id === 'ctrl-grab-mode' ){
+                            self.grabMode = toggleClass(e.target, 'on');
+                        } else if ( e.target.id === 'ctrl-zoom-in'){
+                            self.scale *= 2;
+                            scaleEvent();
+                        } else if ( e.target.id === 'ctrl-zoom-out'){
+                            self.scale *= 0.5;
+                            scaleEvent();
+                        }
                     });
                 });
             },
@@ -260,6 +309,7 @@ define(
                     ,thrust = false
                     ,orig = Physics.vector()
                     ,movePos = Physics.vector()
+                    ,thrustAcc = Physics.vector()
                     ,throttleTime = 1000 / 60 | 0
                     ;
 
@@ -297,7 +347,6 @@ define(
 
                 self.on('release', function( ev, e){
                     drag = false;
-                    // rocket.edge.body.state.vel.zero();
                     thrust = false;
                 });
 
@@ -306,14 +355,8 @@ define(
                     rocketLayer.options({ scale: scale });
                 });
 
-                document.getElementById('catch-up').addEventListener('mousedown', function( e ){
-                    var scale = 0.1;
-                    var diff = Physics.vector().clone( rocket.pos ).vsub( spaceCamBody.state.pos );
-                    spaceCamBody.state.pos.vadd( diff );
-                    spaceCamBody.state.vel.clone( rocket.edge.body.state.vel );
-                    parallaxBody.state.pos.vadd( diff.mult( scale ) );
-                    parallaxBody.state.vel.clone( rocket.edge.body.state.vel ).mult( scale );
-                    document.getElementById('out-of-sight').style.display = 'none';
+                self.on('breaks', function(){
+                    rocket.edge.body.state.vel.zero();
                 });
 
                 function debrisField( body, radius, noclean ){
@@ -418,37 +461,24 @@ define(
                     }, 400);
                 }
 
-                // show rocket out of sight message if needed
-                // setInterval(function(){
-                //     if ( rocket.pos.dist( spaceCamBody.state.pos ) > sightRadius ){
-                //         document.getElementById('out-of-sight').style.display = 'block';
-                //     }
-                // }, 1000);
-
                 world.on('integrate:positions', function( data ){
 
                     rocket.moveTo( rocket.pos );
                     
                     if ( thrust ){
                         rocket.edge.body.state.acc.set(0, -0.0001);
+                        // rocket.edge.body.state.acc.clone( thrustAcc );
                     } else if ( drag ) {
-                        rocket.edge.body.state.vel.clone( movePos ).vsub( rocket.pos ).mult( 1/throttleTime ).vadd( spaceCamBody.state.vel );
-                        movePos.vadd( spaceCamBody.state.vel.mult( data.dt ) );
-                        orig.vsub( spaceCamBody.state.vel );
-                        spaceCamBody.state.vel.mult( 1/data.dt )
+
+                        if ( self.grabMode ){
+                            rocket.edge.body.state.vel.clone( movePos ).vsub( rocket.pos ).mult( 1/throttleTime ).vadd( spaceCamBody.state.vel );
+                            movePos.vadd( spaceCamBody.state.vel.mult( data.dt ) );
+                            orig.vsub( spaceCamBody.state.vel );
+                            spaceCamBody.state.vel.mult( 1/data.dt );
+                        } else {
+                            rocket.edge.body.state.acc.clone( movePos ).vsub( rocket.edge.body.state.pos ).normalize().mult( 0.001 );
+                        }
                     }
-
-                    // var scratch = Physics.scratchpad()
-                    //     ,v = scratch.vector()
-                    //     ;
-
-                    // dampen the gravometer motion
-                    // v.clone( rocket.gravometer.state.pos ).vsub( rocket.gravometer.state.old.pos );
-                    // v.mult(1e-1 );
-                    // rocket.gravometer.state.pos.vsub( v );
-                    // rocket.gravometer.state.vel.mult( 0.9999 );
-
-                    // scratch.done();
                 });
 
                 // explicitly add the edge behavior body to the world

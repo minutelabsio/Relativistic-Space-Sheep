@@ -28,17 +28,27 @@ html, body, #wrap-outer {
 }
 
 /* line 34, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
-#instructions {
+#controls {
   position: absolute;
   bottom: 0;
   right: 0;
-  z-index: 0;
+  z-index: 10;
+  padding: 2em;
   width: 400px;
-  background: rgba(255, 255, 255, 0.8);
-  text-align: center;
+  background: #ededed;
+  border: 1px solid gainsboro;
+  -webkit-border-radius: 3px;
+  -moz-border-radius: 3px;
+  -ms-border-radius: 3px;
+  -o-border-radius: 3px;
+  border-radius: 3px;
+}
+/* line 45, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+#controls .btn-group {
+  margin: 0 0 1em;
 }
 
-/* line 44, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 50, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #out-of-sight {
   display: none;
   position: absolute;
@@ -51,7 +61,7 @@ html, body, #wrap-outer {
   text-align: center;
 }
 
-/* line 56, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 62, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim {
   position: absolute;
   top: 0;
@@ -60,7 +70,7 @@ html, body, #wrap-outer {
   right: 0;
   z-index: 1;
 }
-/* line 63, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 69, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim:after {
   content: 'Rocket Cam';
   position: absolute;
@@ -73,7 +83,7 @@ html, body, #wrap-outer {
   z-index: 4;
 }
 
-/* line 76, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 82, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim canvas {
   position: absolute;
   top: 0;
@@ -81,23 +91,24 @@ html, body, #wrap-outer {
   z-index: 1;
 }
 
-/* line 82, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 88, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim .physics-layer-main {
   z-index: 2;
 }
 
-/* line 86, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 92, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim .physics-layer-rocket {
   z-index: 1;
 }
 
-/* line 90, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 96, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim .physics-layer-parallax {
   z-index: 0;
 }
 
-/* line 94, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 100, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim .physics-layer-rocket-cam {
+  opacity: 0.9;
   top: auto;
   bottom: 0;
   background: url('../images/nightsky.png?1395448799') center center;

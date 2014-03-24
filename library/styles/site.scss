@@ -31,14 +31,20 @@ html, body, #wrap-outer {
     background-size: 1000px;
 }
 
-#instructions {
+#controls {
     position: absolute;
     bottom: 0;
     right: 0;
-    z-index: 0;
+    z-index: 10;
+    padding: 2em;
     width: 400px;
-    background: rgba(255,255,255, 0.8);
-    text-align: center;
+    background: $grey-light;
+    border: 1px solid $grey;
+    @include border-radius( 3px );
+
+    .btn-group {
+        margin: 0 0 1em;
+    }
 }
 
 #out-of-sight {
@@ -92,6 +98,7 @@ html, body, #wrap-outer {
 }
 
 #sim .physics-layer-rocket-cam {
+    opacity: 0.9;
     top: auto;
     bottom: 0;
     background: image-url('nightsky.png') center center;
