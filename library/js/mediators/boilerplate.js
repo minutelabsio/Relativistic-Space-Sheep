@@ -67,7 +67,7 @@ define(
 
                 var self = this;
 
-                self.scale = 0.5;
+                self.scale = 0.25;
                 self.minScale = 0.05;
                 self.maxScale = 1;
 
@@ -297,10 +297,8 @@ define(
                 };
 
                 var drag = false
-                    ,thrust = false
                     ,orig = Physics.vector()
                     ,movePos = Physics.vector()
-                    ,thrustAcc = Physics.vector()
                     ,throttleTime = 1000 / 60 | 0
                     ;
 
@@ -317,7 +315,7 @@ define(
                         movePos.clone( orig );
 
                     } else {
-                        thrust = true;
+                        rocket.thrust = true;
                     }
                 });
 
@@ -338,7 +336,7 @@ define(
 
                 self.on('release', function( ev, e){
                     drag = false;
-                    thrust = false;
+                    rocket.thrust = false;
                 });
 
                 self.on('scale', function( ev, scale ){
@@ -456,9 +454,8 @@ define(
 
                     rocket.moveTo( rocket.pos );
                     
-                    if ( thrust ){
+                    if ( rocket.thrust ){
                         rocket.edge.body.state.acc.set(0, -0.0001);
-                        // rocket.edge.body.state.acc.clone( thrustAcc );
                     } else if ( drag ) {
 
                         if ( self.grabMode ){
@@ -650,9 +647,22 @@ define(
                     }
                     ,outerAABB = Physics.aabb(0, 0, 243, 663)
                     ,rocketImg = new Image()
+                    ,fires = [
+                        new Image()
+                        ,new Image()
+                        ,new Image()
+                    ]
+                    ,fireIdx = 0
                     ;
 
                 rocketImg.src = require.toUrl('../../images/Rocket.png');
+                fires[0].src = require.toUrl('../../images/Fire-1.png');
+                fires[1].src = require.toUrl('../../images/Fire-2.png');
+                fires[2].src = require.toUrl('../../images/Fire-3.png');
+
+                setInterval(function(){
+                    fireIdx = (fireIdx > 1)? 0 : fireIdx + 1;
+                }, 50);
 
                 var ret = {
                     aabb: aabb
@@ -672,12 +682,18 @@ define(
                     }
                     ,drawTo: function( x, y, ctx, renderer ){
 
+                        var fire;
+
                         // renderer.drawRect(x, y, ret.aabb._hw * 2, ret.aabb._hh * 2, rocketStyles, ctx);
 
                         ctx.save();
                         ctx.translate(x, y + 90);
                         // ctx.translate(0, 90);
                         ctx.drawImage(rocketImg, -rocketImg.width/2, -rocketImg.height/2);
+                        if ( ret.thrust ){
+                            fire = fires[ fireIdx ];
+                            ctx.drawImage(fire, -fire.width/2, -fire.height/2);
+                        }
                         ctx.restore();
                     }
                 };
