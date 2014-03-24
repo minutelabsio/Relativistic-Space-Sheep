@@ -142,8 +142,8 @@ define(
                     // control panel
                     var controls = hammer( document.getElementById('controls') );
                     controls.on('touch', function( e ){
-                        if ( e.target.id === 'ctrl-breaks' ){
-                            self.emit('breaks');
+                        if ( e.target.id === 'ctrl-brakes' ){
+                            self.emit('brakes');
                         } else if ( e.target.id === 'ctrl-grab-mode' ){
                             self.grabMode = toggleClass(e.target, 'on');
                         } else if ( e.target.id === 'ctrl-zoom-in'){
@@ -425,7 +425,7 @@ define(
                     rocketLayer.options({ scale: scale });
                 });
 
-                self.on('breaks', function(){
+                self.on('brakes', function(){
                     rocket.edge.body.state.vel.zero();
                 });
 
@@ -496,7 +496,7 @@ define(
                         tag: 'water'
                         ,x: - 45
                         ,y: - 60
-                        ,vx: 0.02
+                        ,vx: 0.04
                         ,radius: 3
                         ,styles: {
                             strokeWidth: 0
@@ -510,7 +510,7 @@ define(
                     renderer.layers.main.addToStack( w );
                     rocketCam.addToStack( w );
                     rocket.edge.applyTo( water.concat(sheep) );
-                }, 1000);
+                }, 500);
 
                 world.on('step', addWater);
 
