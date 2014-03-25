@@ -52,6 +52,34 @@ define(
             }
         }
 
+        var getElementOffset = function( el ){
+                var curleft = 0
+                    ,curtop = 0
+                    ;
+
+                if (el.offsetParent) {
+                    do {
+                        curleft += el.offsetLeft;
+                        curtop += el.offsetTop;
+                    } while (el = el.offsetParent);
+                }
+
+                return { left: curleft, top: curtop };
+            }
+            ,getCoords = function( e, target ){
+                var offset = getElementOffset( target || e.target )
+                    ,obj = ( e.changedTouches && e.changedTouches[0] ) || e
+                    ,x = obj.pageX - offset.left
+                    ,y = obj.pageY - offset.top
+                    ;
+
+                return {
+                    x: x
+                    ,y: y
+                };
+            }
+            ;
+
         /**
          * Page-level Mediator
          * @module Boilerplate
@@ -234,6 +262,27 @@ define(
                         self.viewHeight = window.innerHeight;
                         self.emit('resize');
                     }, true);
+
+
+                    var jsEl = document.getElementById('joystick')
+                        ,joystick = hammer( jsEl )
+                        ,jsHH = jsEl.height * 0.5
+                        ,jsHW = jsEl.width * 0.5
+                        ;
+
+                    joystick.on('touch drag', Physics.util.throttle(function( e ){
+
+                        var pos = getCoords( e.gesture.center, e.target );
+                        pos.x -= jsHW;
+                        pos.y -= jsHH;
+                        self.emit('thrust', pos);
+
+                    }), 50);
+
+                    joystick.on('release', function( e ){
+                        
+                        self.emit('thrust', { x: 0, y: 0 });
+                    });
                 });
             },
 
@@ -487,30 +536,32 @@ define(
 
                 // water
                 //
-                var water = [];
-                var addWater = Physics.util.throttle(function(){
-                    if ( !self.waterTog ){
-                        return;
-                    }
-                    var w = Physics.body('circle', {
-                        tag: 'water'
-                        ,x: - 45
-                        ,y: - 60
-                        ,vx: 0.04
-                        ,radius: 3
-                        ,styles: {
-                            strokeWidth: 0
-                            ,fillStyle: 'rgba(40, 136, 228, 0.85)'
+                var water = []
+                    ,waterView = renderer.createView( Physics.geometry('circle', {radius: 3}), {
+                        strokeWidth: 0
+                        ,fillStyle: 'rgba(40, 136, 228, 0.85)'
+                    })
+                    ,addWater = Physics.util.throttle(function(){
+                        if ( !self.waterTog ){
+                            return;
                         }
-                    });
-                    w.state.pos.vadd( rocket.edge.body.state.pos );
-                    w.state.vel.vadd( rocket.edge.body.state.vel );
-                    water.push( w );
-                    world.add( w );
-                    renderer.layers.main.addToStack( w );
-                    rocketCam.addToStack( w );
-                    rocket.edge.applyTo( water.concat(sheep) );
-                }, 500);
+                        var w = Physics.body('circle', {
+                            tag: 'water'
+                            ,x: - 45
+                            ,y: - 60
+                            ,vx: 0.04
+                            ,radius: 3
+                            ,view: waterView
+                        });
+                        w.state.pos.vadd( rocket.edge.body.state.pos );
+                        w.state.vel.vadd( rocket.edge.body.state.vel );
+                        water.push( w );
+                        world.add( w );
+                        renderer.layers.main.addToStack( w );
+                        rocketCam.addToStack( w );
+                        rocket.edge.applyTo( water.concat(sheep) );
+                    }, 500)
+                    ;
 
                 world.on('step', addWater);
 
@@ -673,6 +724,45 @@ define(
                 return ret;
             },
 
+            initJoystick: function( el ){
+
+                var self = this
+                    ,ctx = el.getContext('2d')
+                    ,width = el.width
+                    ,height = el.height
+                    ,dir = Physics.vector()
+                    ,min = Physics.vector( 30, 30 )
+                    ,max = Physics.vector( width, height ).sub( 30, 30 )
+                    ;
+
+                function clampNorm( v, max ){
+                    var norm = v.norm();
+                    if ( norm === 0 ){
+                        return v;
+                    }
+                    return v.mult( Math.min( max, norm ) / norm );
+                }
+
+                function draw( e, r ){
+
+                    dir.clone( r );
+                    clampNorm( dir, width * 0.5 - 30 );
+                    dir.add( width * 0.5, height * 0.5 );
+
+                    ctx.clearRect(0, 0, width, height);
+
+                    ctx.beginPath();
+                    ctx.strokeStyle = ctx.fillStyle = 'rgb(167, 42, 34)';
+                    ctx.arc(dir.get(0), dir.get(1), 30, 0, Math.PI * 2, false);
+                    ctx.closePath();
+                    ctx.stroke();
+                    ctx.fill();
+                }
+
+                self.on('thrust', draw);
+                draw(null, dir);
+            },
+
             /**
              * DomReady Callback
              * @return {void}
@@ -685,6 +775,8 @@ define(
                 self.viewWidth = window.innerWidth;
                 self.viewHeight = window.innerHeight;
                 Physics(self.initPhysics.bind(self));
+
+                self.initJoystick( document.getElementById('joystick') );
             }
 
         }, ['events']);
