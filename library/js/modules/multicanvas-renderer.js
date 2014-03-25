@@ -117,8 +117,10 @@ define(
                         for ( var i = 0, l = bodies.length; i < l; ++i ){
                             
                             body = bodies[ i ];
-                            view = body.view || ( body.view = self.createView(body.geometry, body.styles || styles[ body.geometry.name ]) );
-                            self.drawBody( body, body.view, layer.ctx, offset );
+                            if ( !body.hidden ){
+                                view = body.view || ( body.view = self.createView(body.geometry, body.styles || styles[ body.geometry.name ]) );
+                                self.drawBody( body, body.view, layer.ctx, offset );
+                            }
                         }
                         layer.ctx.restore();
 

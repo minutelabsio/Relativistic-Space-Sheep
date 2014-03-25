@@ -70,6 +70,7 @@ define(
                 self.scale = 0.25;
                 self.minScale = 0.05;
                 self.maxScale = 1;
+                self.waterTog = true;
 
                 self.initEvents();
 
@@ -153,6 +154,10 @@ define(
                         } else if ( e.target.id === 'ctrl-zoom-out'){
                             self.scale *= 0.5;
                             scaleEvent();
+                        } else if ( e.target.id === 'ctrl-sheep'){
+                            self.emit('sheep-toggle', toggleClass(e.target, 'on'));
+                        } else if ( e.target.id === 'ctrl-water'){
+                            self.waterTog = toggleClass(e.target, 'on');
                         }
                     });
 
@@ -295,6 +300,13 @@ define(
                         }
                     }));
                 }
+
+                self.on('sheep-toggle', function( e, tog ){
+                    for ( i = 0, l = sheep.length; i < l; ++i ){
+                        
+                        sheep[i].hidden = !tog;
+                    }
+                });
 
                 world.add([
                     Physics.behavior('body-collision-detection').applyTo( sheep ),
@@ -477,6 +489,9 @@ define(
                 //
                 var water = [];
                 var addWater = Physics.util.throttle(function(){
+                    if ( !self.waterTog ){
+                        return;
+                    }
                     var w = Physics.body('circle', {
                         tag: 'water'
                         ,x: - 45
