@@ -528,8 +528,8 @@ define(
                         speedEl.innerText = s.toFixed(1) + ' px/s';
                     }, 200)
                     ,bounds = {}
-                    ,rockHW = rocket.outerAABB.halfWidth() - 50
-                    ,rockHH = rocket.outerAABB.halfHeight() - 100
+                    ,rockHW = rocket.outerAABB.halfWidth()
+                    ,rockHH = rocket.outerAABB.halfHeight()
                     ;
 
                 // periodic boundary
@@ -545,9 +545,9 @@ define(
                         ,targets
                         ;
 
-                    bounds.maxX = ( self.viewWidth + rockHW ) * inv2scale;
+                    bounds.maxX = ( self.viewWidth  ) * inv2scale + rockHW;
                     bounds.minX = -bounds.maxX;
-                    bounds.maxY = ( self.viewHeight + rockHH ) * inv2scale;
+                    bounds.maxY = ( self.viewHeight  ) * inv2scale + rockHH;
                     bounds.minY = -bounds.maxY;
 
                     if ( x <= bounds.minX ){
