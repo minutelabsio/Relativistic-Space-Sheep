@@ -96,7 +96,11 @@ define(
                         }
 
                         if ( layer.options.offset ){
-                            offset.vadd( layer.options.offset ).mult( 1/scale );
+                            if ( layer.options.offset === 'center' ){
+                                offset.add( layer.el.width * 0.5, layer.el.height * 0.5 ).mult( 1/scale );
+                            } else {
+                                offset.vadd( layer.options.offset ).mult( 1/scale );
+                            }
                         }
 
                         if ( layer.options.follow ){
