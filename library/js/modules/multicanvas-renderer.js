@@ -96,7 +96,11 @@ define(
                         }
 
                         if ( layer.options.offset ){
-                            offset.vadd( layer.options.offset ).mult( 1/scale );
+                            if ( layer.options.offset === 'center' ){
+                                offset.add( layer.el.width * 0.5, layer.el.height * 0.5 ).mult( 1/scale );
+                            } else {
+                                offset.vadd( layer.options.offset ).mult( 1/scale );
+                            }
                         }
 
                         if ( layer.options.follow ){
@@ -113,8 +117,10 @@ define(
                         for ( var i = 0, l = bodies.length; i < l; ++i ){
                             
                             body = bodies[ i ];
-                            view = body.view || ( body.view = self.createView(body.geometry, body.styles || styles[ body.geometry.name ]) );
-                            self.drawBody( body, body.view, layer.ctx, offset );
+                            if ( !body.hidden ){
+                                view = body.view || ( body.view = self.createView(body.geometry, body.styles || styles[ body.geometry.name ]) );
+                                self.drawBody( body, body.view, layer.ctx, offset );
+                            }
                         }
                         layer.ctx.restore();
 

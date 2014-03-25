@@ -70,6 +70,7 @@ define(
                 self.scale = 0.25;
                 self.minScale = 0.05;
                 self.maxScale = 1;
+                self.waterTog = true;
 
                 self.initEvents();
 
@@ -95,12 +96,13 @@ define(
                 self.after('domready', function(){
 
                     var lastScale
-                        ,sim = document.getElementById('sim')
+                        ,viewport = document.getElementById('viewport')
                         ;
 
-                    sim.focus();
+                    viewport.tabIndex = 0;
+                    viewport.focus();
                     
-                    var hammertime = hammer( sim );
+                    var hammertime = hammer( viewport );
                     hammertime.on('mousewheel', function( e ) { 
                         var zoom = Math.min(Math.abs(e.wheelDelta) / 50, 0.2) * sign(e.wheelDelta);
                         self.scale *= Math.pow(2, zoom);
@@ -125,7 +127,7 @@ define(
                     });
 
                     hammertime.on('touchstart', function( e ){
-                        sim.focus();
+                        viewport.focus();
                         e.preventDefault();
                     });
 
@@ -152,6 +154,10 @@ define(
                         } else if ( e.target.id === 'ctrl-zoom-out'){
                             self.scale *= 0.5;
                             scaleEvent();
+                        } else if ( e.target.id === 'ctrl-sheep'){
+                            self.emit('sheep-toggle', toggleClass(e.target, 'on'));
+                        } else if ( e.target.id === 'ctrl-water'){
+                            self.waterTog = toggleClass(e.target, 'on');
                         }
                     });
 
@@ -169,7 +175,7 @@ define(
                         self.emit('thrust', acc);
                     }
 
-                    sim.addEventListener('keydown', function( e ){
+                    viewport.addEventListener('keydown', function( e ){
                         switch ( e.keyCode ){
                             case 38: // up
                             case 87: // w
@@ -196,7 +202,7 @@ define(
                         return false;
                     });
 
-                    sim.addEventListener('keyup', function( e ){
+                    viewport.addEventListener('keyup', function( e ){
                         switch ( e.keyCode ){
                             case 38: // up
                             case 87: // w
@@ -222,6 +228,12 @@ define(
 
                         return false;
                     });
+
+                    window.addEventListener('resize', function(){
+                        self.viewWidth = window.innerWidth;
+                        self.viewHeight = window.innerHeight;
+                        self.emit('resize');
+                    }, true);
                 });
             },
 
@@ -230,13 +242,10 @@ define(
                 var self = this
                     ,i
                     ,l
-                    ,viewWidth = window.innerWidth
-                    ,viewHeight = window.innerHeight
-                    ,sightRadius = Math.max( viewWidth, viewHeight ) * 0.5 * ( Math.sqrt(2) )
                     ,renderer = Physics.renderer('multicanvas', {
                         el: 'physics',
-                        width: viewWidth,
-                        height: viewHeight,
+                        width: self.viewWidth,
+                        height: self.viewHeight,
                         // meta: true,
                         // debug:true,
                         styles: {
@@ -248,8 +257,6 @@ define(
                             }
                         }
                     })
-                    // bounds of the window
-                    ,viewportBounds = Physics.aabb(0, 0, viewWidth, viewHeight)
                     ;
 
                 this.world = world;
@@ -264,17 +271,10 @@ define(
                 });
                 
                 // resize events
-                window.addEventListener('resize', function () {
+                self.on('resize', function () {
             
-                    viewWidth = window.innerWidth;
-                    viewHeight = window.innerHeight;
-            
-                    renderer.resize( viewWidth, viewHeight );
-                    sightRadius = Math.max( viewWidth, viewHeight ) * 0.5;
-            
-                    viewportBounds = Physics.aabb(0, 0, viewWidth, viewHeight);
-            
-                }, true);
+                    renderer.resize( self.viewWidth, self.viewHeight );
+                });
                 
                 // subscribe to ticker to advance the simulation
                 Physics.util.ticker.on(function (time, dt) {
@@ -286,12 +286,11 @@ define(
                 Physics.util.ticker.start();
 
                 var sheep = [];
-
                 for ( i = 0, l = 5; i < l; ++i ){
                     
                     sheep.push(Physics.body('circle', {
-                        x: Math.random() * viewWidth
-                        ,y: Math.random() * viewHeight
+                        x: Math.random() * self.viewWidth
+                        ,y: Math.random() * self.viewHeight
                         ,vx: Math.random() * 0.1
                         ,vy: Math.random() * 0.1
                         ,radius: 12
@@ -302,6 +301,13 @@ define(
                     }));
                 }
 
+                self.on('sheep-toggle', function( e, tog ){
+                    for ( i = 0, l = sheep.length; i < l; ++i ){
+                        
+                        sheep[i].hidden = !tog;
+                    }
+                });
+
                 world.add([
                     Physics.behavior('body-collision-detection').applyTo( sheep ),
                     Physics.behavior('sweep-prune'),
@@ -309,51 +315,46 @@ define(
                 ]);
 
                 var spaceCamBody = Physics.body('point', {
-                    x: viewWidth * 0.5
-                    ,y: viewHeight * 0.5
-                    ,treatment: 'kinematic'
-                });
-
-                var parallaxBody = Physics.body('point', {
-                    x: viewWidth * 0.5
-                    ,y: viewHeight * 0.5
+                    x: self.viewWidth * 0.5
+                    ,y: self.viewHeight * 0.5
                     ,treatment: 'kinematic'
                 });
 
                 world.add([
-                    spaceCamBody 
-                    ,parallaxBody
+                    spaceCamBody
                 ]);
 
                 // rocket
-                var rocket = self.addRocket(viewWidth * 0.5, viewHeight * 0.5);
+                var rocket = self.addRocket(0, 0);
 
                 renderer.layers.main
                     .addToStack( sheep )
-                    // .addToStack( rocket.gravometer )
                     .options({ 
-                        follow: spaceCamBody
-                        ,scale: self.scale
-                        ,offset: Physics.vector(viewWidth * 0.5, viewHeight * 0.5) 
+                        // follow: spaceCamBody
+                        scale: self.scale
+                        ,offset: 'center'
                     })
                     ;
 
                 // rocket rendering
                 var rocketLayer = renderer.addLayer('rocket', null, {
-                    follow: spaceCamBody
-                    ,scale: self.scale
-                    ,offset: Physics.vector(viewWidth * 0.5, viewHeight * 0.5)
+                    // follow: spaceCamBody
+                    scale: self.scale
+                    ,offset: 'center'
                 });
+
                 rocketLayer.render = function(){
 
                     var ctx = rocketLayer.ctx
-                        ,aabb = rocket.aabb
                         ,scratch = Physics.scratchpad()
                         ,offset = scratch.vector().set(0, 0)
                         ,scale = rocketLayer.options.scale
+                        ,pos = rocket.edge.body.state.pos
                         ;
 
-                    if ( rocketLayer.options.offset ){
+                    if ( rocketLayer.options.offset === 'center' ){
+                        offset.add( rocketLayer.el.width * 0.5, rocketLayer.el.height * 0.5 ).mult( 1/scale );
+                    } else {
                         offset.vadd( rocketLayer.options.offset ).mult( 1/scale );
                     }
 
@@ -364,11 +365,13 @@ define(
                     ctx.clearRect(0, 0, rocketLayer.el.width, rocketLayer.el.height);
                     ctx.save();
                     ctx.scale( scale, scale );
-                    rocket.drawTo(aabb._pos.get(0) + offset.get(0), aabb._pos.get(1) + offset.get(1), ctx, renderer);
+                    rocket.drawTo(pos.get(0) + offset.get(0), pos.get(1) + offset.get(1), ctx, renderer);
                     ctx.restore();
                     scratch.done();
                 };
 
+                // events
+                // 
                 var drag = false
                     ,orig = Physics.vector()
                     ,movePos = Physics.vector()
@@ -380,7 +383,7 @@ define(
                     var pos = e.gesture.center;
                     pos.x = pos.pageX;
                     pos.y = pos.pageY;
-                    orig.clone( pos ).sub( viewWidth/2, viewHeight/2 ).mult( 1 / self.scale ).vadd( spaceCamBody.state.pos );
+                    orig.clone( pos ).sub( self.viewWidth/2, self.viewHeight/2 ).mult( 1 / self.scale );
 
                     if ( rocket.outerAABB.contains( orig ) ){
 
@@ -401,9 +404,6 @@ define(
                 });
 
                 self.on('drag', Physics.util.throttle(function(ev, e){
-                    var pos = e.gesture.center;
-                    pos.x = pos.pageX;
-                    pos.y = pos.pageY;
                     
                     if ( drag ){
 
@@ -443,7 +443,7 @@ define(
                             orig.vsub( spaceCamBody.state.vel );
                             spaceCamBody.state.vel.mult( 1/data.dt );
                         } else {
-                            rocket.edge.body.state.acc.clone( movePos ).vsub( rocket.edge.body.state.pos ).normalize().mult( 0.001 );
+                            rocket.edge.body.state.acc.clone( movePos ).vsub( rocket.edge.body.state.pos ).normalize().mult( 0.0001 );
                         }
                     }
                 });
@@ -452,7 +452,6 @@ define(
                 rocket.edge.body.treatment = 'kinematic';
                 world.add([ 
                     rocket.edge.body
-                    // ,rocket.gravometer
                     ,rocket.constr
                 ]);
 
@@ -484,14 +483,15 @@ define(
 
                 rocketCam
                     .addToStack( sheep )
-                    // .addToStack( rocket.gravometer )
                     ;
 
                 // water
                 //
-
                 var water = [];
                 var addWater = Physics.util.throttle(function(){
+                    if ( !self.waterTog ){
+                        return;
+                    }
                     var w = Physics.body('circle', {
                         tag: 'water'
                         ,x: - 45
@@ -537,31 +537,33 @@ define(
                     }                    
                 });
 
-                // debrisField( spaceCamBody, sightRadius, [{ pos: rocket.edge.body.state.pos, halfWidth: 400, halfHeight: 400 }] );
-                // debrisField( rocket.edge.body, 400, [{ pos: spaceCamBody.state.pos, halfWidth: sightRadius, halfHeight: sightRadius }] );
-                
                 var speedEl = document.getElementById('speed-meter')
                     ,updateSpeed = Physics.util.throttle(function(){
                         var s = rocket.edge.body.state.vel.norm() * 1000;
                         speedEl.innerText = s.toFixed(1) + ' px/s';
                     }, 200)
+                    ,bounds = {}
+                    ,rockHW = rocket.outerAABB.halfWidth()
+                    ,rockHH = rocket.outerAABB.halfHeight()
                     ;
 
                 // periodic boundary
                 world.on('step', function(){
-                    var inv2scale = 0.5 / self.scale;
-                    var bounds = {
-                        minX: -viewWidth * inv2scale + rocketLayer.options.offset.get(0) - 120
-                        ,maxX: viewWidth * inv2scale + rocketLayer.options.offset.get(0) + 120
-                        ,minY: -viewHeight * inv2scale + rocketLayer.options.offset.get(1) - 340
-                        ,maxY: viewHeight * inv2scale + rocketLayer.options.offset.get(1) + 340
-                    };
-                    var x = rocket.pos.get(0)
+                    
+                    var inv2scale = 0.5 / self.scale
+                        ,i
+                        ,l
+                        ,x = rocket.pos.get(0)
                         ,y = rocket.pos.get(1)
                         ,scratch = Physics.scratchpad()
                         ,dr = scratch.vector().set(0, 0)
                         ,targets
                         ;
+
+                    bounds.maxX = ( self.viewWidth  ) * inv2scale + rockHW;
+                    bounds.minX = -bounds.maxX;
+                    bounds.maxY = ( self.viewHeight  ) * inv2scale + rockHH;
+                    bounds.minY = -bounds.maxY;
 
                     if ( x <= bounds.minX ){
                         dr.add( bounds.maxX - bounds.minX, 0 );
@@ -583,7 +585,7 @@ define(
 
                         targets = rocket.edge.getTargets();
 
-                        for ( var i = 0, l = targets.length; i < l; ++i ){
+                        for ( i = 0, l = targets.length; i < l; ++i ){
                             
                             targets[ i ].state.pos.vadd( dr );
                             targets[ i ].state.old.pos.vadd( dr );
@@ -591,9 +593,10 @@ define(
                     }
 
                     scratch.done();
-
-                    updateSpeed();
                 });
+    
+                // update speed display
+                world.on('step', updateSpeed);
             },
 
             addRocket: function( x, y ){
@@ -611,22 +614,12 @@ define(
                         ,restitution: 0.4
                         ,cof: 0.8
                     }).applyTo([])
-                    ,anchor = Physics.body('point', {
-                        treatment: 'static'
-                    })
-                    ,gravometer = Physics.body('circle', {
-                        x: x
-                        ,y: y - 120
-                        ,radius: 5
-                        ,styles: 'red'
-                    })
-                    ,constr = Physics.behavior('verlet-constraints')
                     ,rocketStyles = {
                         lineWidth: 0
                         ,strokeStyle: 'black'
                         ,fillStyle: 'rgba(200, 200, 200, 1)'
                     }
-                    ,outerAABB = Physics.aabb(0, 0, 243, 663)
+                    ,outerAABB = Physics.aabb(0, 0, 243, 549)
                     ,rocketImg = new Image()
                     ,fires = [
                         new Image()
@@ -641,23 +634,21 @@ define(
                 fires[1].src = require.toUrl('../../images/Fire-2.png');
                 fires[2].src = require.toUrl('../../images/Fire-3.png');
 
-                setInterval(function(){
+                var getThrustImg = Physics.util.throttle(function(){
                     fireIdx = (fireIdx > 1)? 0 : fireIdx + 1;
+                    return fires[ fireIdx ];
                 }, 50);
 
                 var ret = {
                     aabb: aabb
+                    ,thrust: false
                     ,outerAABB: outerAABB
                     ,edge: edge
                     ,pos: edge.body.state.pos
-                    ,anchor: anchor
-                    ,gravometer: gravometer
-                    ,constr: constr
                     ,moveTo: function( pos ){
-                        ret.anchor.state.pos.clone( pos ).sub( 0, 140 );
                         ret.pos.clone( pos );
                         ret.aabb._pos.clone( pos );
-                        ret.outerAABB._pos.clone( pos );
+                        ret.outerAABB._pos.clone( pos ).add(0, 32);
                         ret.edge.setAABB( ret.aabb );
                         return ret;
                     }
@@ -665,14 +656,12 @@ define(
 
                         var fire;
 
-                        // renderer.drawRect(x, y, ret.aabb._hw * 2, ret.aabb._hh * 2, rocketStyles, ctx);
-
                         ctx.save();
-                        ctx.translate(x, y + 90);
-                        // ctx.translate(0, 90);
+                        ctx.translate(x, y + 32); // 32 is rocket img shim
                         ctx.drawImage(rocketImg, -rocketImg.width/2, -rocketImg.height/2);
                         if ( ret.thrust ){
-                            fire = fires[ fireIdx ];
+                            fire = getThrustImg();
+                            ctx.translate(0, 55);
                             ctx.drawImage(fire, -fire.width/2, -fire.height/2);
                         }
                         ctx.restore();
@@ -680,9 +669,6 @@ define(
                 };
 
                 ret.moveTo({ x: x, y: y });
-                // constr.angleConstraint( rocket.edge.body, rocket.anchor, gravometer, 0.001 );
-                // constr.distanceConstraint( rocket.edge.body, gravometer, 0.01 );
-                // constr.distanceConstraint( anchor, gravometer, 1 );
 
                 return ret;
             },
@@ -696,6 +682,8 @@ define(
                 var self = this
                     ;
 
+                self.viewWidth = window.innerWidth;
+                self.viewHeight = window.innerHeight;
                 Physics(self.initPhysics.bind(self));
             }
 
