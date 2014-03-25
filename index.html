@@ -14,23 +14,25 @@ layout: default
     <p>You can drag the rocket around.</p>
     <p>Click/tap and hold outside the rocket to accelerate it</p>
 </div> -->
-<div id="controls">
+<div id="controls" class="row">
 
     <div class="btn-group btns">
         <button id="ctrl-grab-mode" class="pop toggle">Grab Mode</button>
         <button id="ctrl-sheep" class="toggle on">Sheep</button>
         <button id="ctrl-water" class="toggle on">Water</button>
     </div>
-    
+
+    <label>Zoom</label>
+    <div class="btn-group btns">
+        <button id="ctrl-zoom-in">+</button>
+        <button id="ctrl-zoom-out">-</button>
+    </div>
+
     <div class="btns">
         <button id="ctrl-brakes" class="danger">Brakes</button>
     </div>
 
-    <label>Zoom</label>
-    <div class="btn-group">
-        <button id="ctrl-zoom-in">+</button>
-        <button id="ctrl-zoom-out">-</button>
-    </div>
+    <canvas id="joystick" width="160" height="160"></canvas>
 </div>
 
 <div id="com-panel">
