@@ -31,15 +31,26 @@ html, body, #wrap-outer {
     background-size: 1000px;
 }
 
+#instructions {
+    position: absolute;
+    top: 32px;
+    right: 0;
+    z-index: 100;
+    background: #fff;
+    padding: 0.75em;
+    width: 314px;
+    @include border-radius( 3px );
+}
+
 #controls {
     position: absolute;
     bottom: 0;
     right: 0;
     z-index: 10;
     padding: .75em;
-    width: 332px;
+    width: 314px;
     height: 253px;
-    background: $grey-light;
+    background: #fff;
     border: 1px solid $grey;
     font-size: 14px;
     @include border-radius( 3px );

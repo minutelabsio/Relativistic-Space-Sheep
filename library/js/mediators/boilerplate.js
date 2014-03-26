@@ -172,6 +172,7 @@ define(
                     // control panel
                     var controls = hammer( document.getElementById('controls') );
                     controls.on('touch', function( e ){
+                        e.preventDefault();
                         if ( e.target.id === 'ctrl-brakes' ){
                             self.emit('brakes');
                         } else if ( e.target.id === 'ctrl-grab-mode' ){
@@ -207,22 +208,22 @@ define(
                         switch ( e.keyCode ){
                             case 38: // up
                             case 87: // w
-                                keys.up = 1;
+                                keys.up = 100;
                                 thrustEvent();
                             break;
                             case 40: // down
                             case 83: // s
-                                keys.down = 1;
+                                keys.down = 100;
                                 thrustEvent();
                             break;
                             case 37: // left
                             case 65: // a
-                                keys.left = 1;
+                                keys.left = 100;
                                 thrustEvent();
                             break;
                             case 39: // right
                             case 68: // d
-                                keys.right = 1;
+                                keys.right = 100;
                                 thrustEvent();
                             break;
                         }
@@ -282,6 +283,10 @@ define(
                     joystick.on('release', function( e ){
                         
                         self.emit('thrust', { x: 0, y: 0 });
+                    });
+
+                    hammer(document.getElementById('ctrl-dismiss-instructions')).on('touch', function(){
+                        self.emit('dismiss-instructions');
                     });
                 });
             },
@@ -560,7 +565,7 @@ define(
                         renderer.layers.main.addToStack( w );
                         rocketCam.addToStack( w );
                         rocket.edge.applyTo( water.concat(sheep) );
-                    }, 500)
+                    }, 250)
                     ;
 
                 world.on('step', addWater);
@@ -591,7 +596,7 @@ define(
                 var speedEl = document.getElementById('speed-meter')
                     ,updateSpeed = Physics.util.throttle(function(){
                         var s = rocket.edge.body.state.vel.norm() * 1000;
-                        speedEl.innerText = s.toFixed(1) + ' px/s';
+                        speedEl.innerHTML = s.toFixed(1) + ' px/s';
                     }, 200)
                     ,bounds = {}
                     ,rockHW = rocket.outerAABB.halfWidth()
@@ -777,6 +782,11 @@ define(
                 Physics(self.initPhysics.bind(self));
 
                 self.initJoystick( document.getElementById('joystick') );
+
+                self.on('dismiss-instructions', function(){
+                    var el = document.getElementById('instructions');
+                    el.style.display = 'none';
+                });
             }
 
         }, ['events']);

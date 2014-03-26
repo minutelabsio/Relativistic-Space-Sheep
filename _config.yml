@@ -2,7 +2,7 @@ permalink: /:year-:month-:day/:title
 markdown: rdiscount
 exclude: ["README.md", "CNAME", "LICENSE", "build", "config.rb", "Gruntfile.js", "package.json", "jshint.json"]
 
-title : "Equivalence Principal"
+title : "Relativistic Space Sheep"
 id : "" # changeme
 description : "Short description" # changeme
 thumb: "thumb.gif" # changeme
