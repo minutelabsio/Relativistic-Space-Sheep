@@ -140,20 +140,15 @@ html, body, #wrap-outer {
 
 /* line 125, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim .physics-layer-main {
-  z-index: 2;
-}
-
-/* line 129, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
-#sim .physics-layer-rocket {
   z-index: 1;
 }
 
-/* line 133, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 129, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim .physics-layer-parallax {
   z-index: 0;
 }
 
-/* line 137, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
+/* line 133, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #sim .physics-layer-rocket-cam {
   opacity: 0.9;
   top: auto;
