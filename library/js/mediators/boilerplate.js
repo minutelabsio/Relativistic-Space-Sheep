@@ -488,6 +488,7 @@ define(
                 self.on('release', function( ev, e){
                     drag = false;
                     rocket.thrust.zero();
+                    self.emit('thrust', rocket.thrust);
                 });
 
                 self.on('scale', function( ev, scale ){
@@ -502,15 +503,15 @@ define(
 
                     rocket.moveTo( rocket.pos );
                     
-                    if ( !thrustAcc.equals( Physics.vector.zero ) ){
-                        rocket.edge.body.state.acc.clone( thrustAcc ).mult( 0.0001 );
-                    } else if ( drag ) {
-
+                    if ( drag ) {
                         if ( self.grabMode ){
                             rocket.edge.body.state.vel.clone( movePos ).vsub( rocket.pos ).mult( 1/throttleTime );
                         } else {
                             rocket.edge.body.state.acc.clone( movePos ).vsub( rocket.edge.body.state.pos ).normalize().mult( 0.0001 );
+                            self.emit('thrust', rocket.edge.body.state.acc );
                         }
+                    } else if ( !thrustAcc.equals( Physics.vector.zero ) ){
+                        rocket.edge.body.state.acc.clone( thrustAcc ).mult( 0.0001 );
                     }
                 });
 
