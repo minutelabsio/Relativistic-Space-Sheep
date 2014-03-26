@@ -2,7 +2,7 @@ permalink: /:year-:month-:day/:title
 markdown: rdiscount
 exclude: ["README.md", "CNAME", "LICENSE", "build", "config.rb", "Gruntfile.js", "package.json", "jshint.json"]
 
-title : "Equivalence Principal"
+title : "Relativistic Space Sheep"
 id : "" # changeme
 description : "Short description" # changeme
 thumb: "thumb.gif" # changeme
@@ -11,7 +11,7 @@ version: "0.0.1"
 ml_url: "http://minutelabs.io"
 ml_library: "http://labs.minutelabs.io/library"
 ml_assets: "http://labs.minutelabs.io/assets"
-library_path: "library" # changeme
+library_path: "library-build" # changeme
 
 show :
   branding: true
