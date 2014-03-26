@@ -88,6 +88,7 @@ define(
                             ,scratch = Physics.scratchpad()
                             ,offset = scratch.vector().set(0, 0)
                             ,scale = layer.options.scale
+                            ,view
                             ;
 
                         if ( layer.options.manual ){
