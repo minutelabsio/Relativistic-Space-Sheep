@@ -7,6 +7,11 @@ html, body, #wrap-outer {
     height: 100%;
 }
 
+.thumb-left {
+    float: left;
+    margin: 0.5em 0.75em 0 0;
+}
+
 .dg {
     input {
         line-height: 1.4;
@@ -32,14 +37,29 @@ html, body, #wrap-outer {
 }
 
 #instructions {
-    position: absolute;
-    top: 32px;
-    right: 0;
     z-index: 100;
-    background: #fff;
+    color: #fff;
     padding: 0.75em;
-    width: 314px;
     @include border-radius( 3px );
+
+    .left,
+    .right {
+        position: absolute;
+        top: 160px;
+        width: 316px;
+    }
+
+    .left {
+        left: 1em;
+    }
+
+    .right {
+        right: 1em;
+    }
+
+    img {
+        margin-top: 1.5em;
+    }
 }
 
 #controls {

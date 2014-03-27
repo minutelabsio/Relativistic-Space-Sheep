@@ -103,7 +103,7 @@ define(
 
                 var self = this;
 
-                self.scale = 0.25;
+                self.scale = window.innerWidth > 1080 ? 1 : window.innerWidth / 1080;
                 self.minScale = 0.05;
                 self.maxScale = 1;
                 self.waterTog = true;
@@ -308,8 +308,18 @@ define(
                         self.emit('thrust', { x: 0, y: 0 });
                     });
 
-                    hammer(document.getElementById('ctrl-dismiss-instructions')).on('touch', function(){
+                    // hammer(document.getElementById('instructions')).on('touch', function(){
+                    //     self.emit('dismiss-instructions');
+                    // });
+
+                    self.on('touch', function( e ){
                         self.emit('dismiss-instructions');
+                        self.off(e.topic, e.handler);
+                    });
+
+                    self.on('thrust', function( e ){
+                        self.emit('dismiss-instructions');
+                        self.off(e.topic, e.handler);
                     });
                 });
             },
