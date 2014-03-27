@@ -849,9 +849,20 @@ define(
 
                 self.initJoystick( document.getElementById('joystick') );
 
+                var el = document.getElementById('instructions');
+                el.style.opacity = '1';
+
                 self.on('dismiss-instructions', function(){
-                    var el = document.getElementById('instructions');
-                    el.style.display = 'none';
+                    el.style.opacity = '0';
+
+                    setTimeout(function(){
+                        el = document.getElementById('direction');
+                        el.style.opacity = '1';
+
+                        setTimeout(function(){
+                            el.style.opacity = '0';
+                        }, 30000);
+                    }, 15000);
                 });
             }
 
