@@ -305,7 +305,8 @@ define(
 
                     joystick.on('release', function( e ){
                         
-                        self.emit('thrust', { x: 0, y: 0 });
+                        acc.x = acc.y = 0;
+                        self.emit('thrust', acc);
                     });
 
                     // hammer(document.getElementById('instructions')).on('touch', function(){
@@ -544,7 +545,8 @@ define(
                     ,height: 400
                     ,autoResize: false
                     ,follow: rocket.edge.body
-                    ,offset: Physics.vector(200, 160)
+                    ,scale: 0.8
+                    ,offset: Physics.vector(200, 210)
                 });
 
                 var oldRender = rocketCam.render;
@@ -553,12 +555,20 @@ define(
                     var ctx = rocketCam.ctx
                         ,aabb = rocket.aabb
                         ,offset = rocketCam.options.offset
+                        ,scale = rocketCam.options.scale
                         ;
 
                     ctx.clearRect(0, 0, rocketCam.el.width, rocketCam.el.height);
-                    rocket.drawBgTo(offset.get(0), offset.get(1), ctx, renderer);
+                    
+                    ctx.save();
+                    ctx.scale( scale, scale );
+                    rocket.drawBgTo(offset.get(0)/scale, offset.get(1)/scale, ctx, renderer);
+                    ctx.restore();
                     oldRender( false );
-                    rocket.drawTo(offset.get(0), offset.get(1), ctx, renderer);
+                    ctx.save();
+                    ctx.scale( scale, scale );
+                    rocket.drawTo(offset.get(0)/scale, offset.get(1)/scale, ctx, renderer);
+                    ctx.restore();
                 };
 
                 rocketCam
