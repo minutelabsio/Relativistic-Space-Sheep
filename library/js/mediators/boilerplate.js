@@ -594,7 +594,7 @@ define(
                     ;
 
                 // water images
-                for ( var i = 0, l = 3; i < l; ++i ){
+                for ( i = 0, l = 3; i < l; ++i ){
                     
                     waterViews[ i ] = new Image();
                     waterViews[ i ].src = require.toUrl('../../images/Water-'+(i+1)+'.png');

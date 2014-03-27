@@ -37,7 +37,7 @@ define(function(){
             if ( flip ){
                 ctx.scale( -1, 1 );
             }
-            ctx.rotate( ang )
+            ctx.rotate( ang );
             ctx.drawImage(img, -img.width * 0.5, -img.height * 0.5);
             ctx.restore();
         }
