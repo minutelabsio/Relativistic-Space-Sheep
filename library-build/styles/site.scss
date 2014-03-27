@@ -36,30 +36,31 @@ html, body, #wrap-outer {
     background-size: 1000px;
 }
 
-#instructions {
-    z-index: 100;
+#instructions,
+#direction {
     color: #fff;
-    padding: 0.75em;
-    @include border-radius( 3px );
-
-    .left,
-    .right {
-        position: absolute;
-        top: 160px;
-        width: 316px;
-    }
-
-    .left {
-        left: 1em;
-    }
-
-    .right {
-        right: 1em;
-    }
+    position: absolute;
+    top: 160px;
+    width: 316px;
+    @include transition( opacity .4s ease );
 
     img {
         margin-top: 1.5em;
     }
+}
+
+#instructions {
+    opacity: 0;
+    top: 50%;
+    left: 50%;
+    width: 400px;
+    margin-left: -3em;
+    margin-top: -300px;
+}
+
+#direction {
+    opacity: 0;
+    left: 2em;
 }
 
 #controls {
