@@ -103,7 +103,7 @@ define(
 
                 var self = this;
 
-                self.scale = window.innerWidth > 1080 ? 1 : window.innerWidth / 1080;
+                self.scale = window.innerWidth > 1080 ? 0.85 : Math.min(window.innerWidth / 1080, 0.85);
                 self.minScale = 0.05;
                 self.maxScale = 1;
                 self.waterTog = true;
