@@ -1,6 +1,7 @@
 define(
     [
         'require',
+        'when',
         'plugins/domready',
         'moddef',
         'hammer',
@@ -10,6 +11,7 @@ define(
     ],
     function(
         require,
+        when,
         domReady,
         M,
         hammer,
@@ -783,8 +785,8 @@ define(
                     ,width = el.width
                     ,height = el.height
                     ,dir = Physics.vector()
-                    ,min = Physics.vector( 30, 30 )
-                    ,max = Physics.vector( width, height ).sub( 30, 30 )
+                    ,jsImg = new Image()
+                    ,jsBgImg = new Image()
                     ;
 
                 function clampNorm( v, max ){
@@ -798,21 +800,28 @@ define(
                 function draw( e, r ){
 
                     dir.clone( r );
-                    clampNorm( dir, width * 0.5 - 30 );
+                    clampNorm( dir, width * 0.5 - 49 );
                     dir.add( width * 0.5, height * 0.5 );
 
                     ctx.clearRect(0, 0, width, height);
-
-                    ctx.beginPath();
-                    ctx.strokeStyle = ctx.fillStyle = 'rgb(167, 42, 34)';
-                    ctx.arc(dir.get(0), dir.get(1), 30, 0, Math.PI * 2, false);
-                    ctx.closePath();
-                    ctx.stroke();
-                    ctx.fill();
+                    ctx.drawImage( jsBgImg, -1, -1 );
+                    ctx.save();
+                    ctx.translate( dir.get(0), dir.get(1) );
+                    ctx.drawImage( jsImg, -jsImg.width * 0.5, -jsImg.height * 0.5 );
+                    ctx.restore();
                 }
 
-                self.on('thrust', draw);
-                draw(null, dir);
+                when.map( [jsImg, jsBgImg], function( img ){
+                    var dfd = when.defer();
+                    img.onload = dfd.resolve;
+                    return dfd.promise;
+                }).then(function(){
+                    self.on('thrust', draw);
+                    draw(null, dir);
+                });
+
+                jsImg.src = require.toUrl('../../images/Joystick.png');
+                jsBgImg.src = require.toUrl('../../images/Joystick-bg.png');
             },
 
             /**
