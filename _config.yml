@@ -4,14 +4,14 @@ exclude: ["README.md", "CNAME", "LICENSE", "build", "config.rb", "Gruntfile.js",
 
 title : "Relativistic Space Sheep"
 id : "" # changeme
-description : "Short description" # changeme
+description : "See the Equivalence Principal in action!"
 thumb: "thumb.gif" # changeme
-version: "0.0.1"
+version: "0.0.2"
 
 ml_url: "http://minutelabs.io"
 ml_library: "http://labs.minutelabs.io/library"
 ml_assets: "http://labs.minutelabs.io/assets"
-library_path: "library-build" # changeme
+library_path: "library-build"
 
 show :
   branding: true

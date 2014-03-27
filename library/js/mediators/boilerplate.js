@@ -1,18 +1,22 @@
 define(
     [
         'require',
+        'when',
         'plugins/domready',
         'moddef',
         'hammer',
         'physicsjs',
+        'modules/sprite',
         'modules/multicanvas-renderer'
     ],
     function(
         require,
+        when,
         domReady,
         M,
         hammer,
         Physics,
+        Sprite,
         _mcr
     ) {
 
@@ -37,10 +41,14 @@ define(
             return s.substr(s.length - size);
         }
 
-        function toggleClass( el, cls ){
+        function toggleClass( el, cls, tog ){
             var classes = el.className.split(' ')
                 ,idx = classes.indexOf( cls )
                 ;
+
+            if ( tog === (idx > -1) ){
+                return tog;
+            }
 
             if ( idx > -1 ){
                 classes.splice( idx, 1 );
@@ -95,7 +103,7 @@ define(
 
                 var self = this;
 
-                self.scale = 0.25;
+                self.scale = window.innerWidth > 1080 ? 1 : window.innerWidth / 1080;
                 self.minScale = 0.05;
                 self.maxScale = 1;
                 self.waterTog = true;
@@ -169,6 +177,16 @@ define(
                         self.emit('release', e);
                     });
 
+                    var keys = {
+                            up: 0
+                            ,down: 0
+                            ,left: 0
+                            ,right: 0
+                        }
+                        ,acc = { x: 0, y: 0 }
+                        ,boosterBtn = document.getElementById('ctrl-booster')
+                        ;
+
                     // control panel
                     var controls = hammer( document.getElementById('controls') );
                     controls.on('touch', function( e ){
@@ -187,18 +205,13 @@ define(
                             self.emit('sheep-toggle', toggleClass(e.target, 'on'));
                         } else if ( e.target.id === 'ctrl-water'){
                             self.waterTog = toggleClass(e.target, 'on');
+                        } else if ( e.target.id === 'ctrl-booster'){
+                            self.booster = toggleClass(e.target, 'on');
+                            self.emit('thrust', acc);
                         }
                     });
 
-                    var keys = {
-                        up: 0
-                        ,down: 0
-                        ,left: 0
-                        ,right: 0
-                    };
-
                     function thrustEvent(){
-                        var acc = { x: 0, y: 0 };
                         acc.x = keys.right - keys.left;
                         acc.y = keys.down - keys.up;
                         self.emit('thrust', acc);
@@ -224,6 +237,11 @@ define(
                             case 39: // right
                             case 68: // d
                                 keys.right = 100;
+                                thrustEvent();
+                            break;
+                            case 32: // spacebar
+                                self.booster = true;
+                                toggleClass(boosterBtn, 'on', true);
                                 thrustEvent();
                             break;
                         }
@@ -253,6 +271,11 @@ define(
                                 keys.right = 0;
                                 thrustEvent();
                             break;
+                            case 32: // spacebar
+                                self.booster = false;
+                                toggleClass(boosterBtn, 'on', false);
+                                thrustEvent();
+                            break;
                         }
 
                         return false;
@@ -274,9 +297,9 @@ define(
                     joystick.on('touch drag', Physics.util.throttle(function( e ){
 
                         var pos = getCoords( e.gesture.center, e.target );
-                        pos.x -= jsHW;
-                        pos.y -= jsHH;
-                        self.emit('thrust', pos);
+                        acc.x = pos.x - jsHW;
+                        acc.y = pos.y - jsHH;
+                        self.emit('thrust', acc);
 
                     }), 50);
 
@@ -285,8 +308,18 @@ define(
                         self.emit('thrust', { x: 0, y: 0 });
                     });
 
-                    hammer(document.getElementById('ctrl-dismiss-instructions')).on('touch', function(){
+                    // hammer(document.getElementById('instructions')).on('touch', function(){
+                    //     self.emit('dismiss-instructions');
+                    // });
+
+                    self.on('touch', function( e ){
                         self.emit('dismiss-instructions');
+                        self.off(e.topic, e.handler);
+                    });
+
+                    self.on('thrust', function( e ){
+                        self.emit('dismiss-instructions');
+                        self.off(e.topic, e.handler);
                     });
                 });
             },
@@ -368,55 +401,47 @@ define(
                     Physics.behavior('body-impulse-response')
                 ]);
 
-                var spaceCamBody = Physics.body('point', {
-                    x: self.viewWidth * 0.5
-                    ,y: self.viewHeight * 0.5
-                    ,treatment: 'kinematic'
-                });
-
-                world.add([
-                    spaceCamBody
-                ]);
-
                 // rocket
-                var rocket = self.addRocket(0, 0);
+                var rocket = self.addRocket(0, 0)
+                    ,mainRenderFn = renderer.layers.main.render
+                    ;
 
                 renderer.layers.main
                     .addToStack( sheep )
                     .options({ 
-                        // follow: spaceCamBody
                         scale: self.scale
                         ,offset: 'center'
                     })
                     ;
 
-                // rocket rendering
-                var rocketLayer = renderer.addLayer('rocket', null, {
-                    // follow: spaceCamBody
-                    scale: self.scale
-                    ,offset: 'center'
-                });
+                renderer.layers.main.render = function(){
 
-                rocketLayer.render = function(){
-
-                    var ctx = rocketLayer.ctx
+                    var layer = renderer.layers.main
+                        ,ctx = layer.ctx
                         ,scratch = Physics.scratchpad()
                         ,offset = scratch.vector().set(0, 0)
-                        ,scale = rocketLayer.options.scale
+                        ,width = layer.el.width
+                        ,height = layer.el.height
+                        ,scale = layer.options.scale
                         ,pos = rocket.edge.body.state.pos
                         ;
 
-                    if ( rocketLayer.options.offset === 'center' ){
-                        offset.add( rocketLayer.el.width * 0.5, rocketLayer.el.height * 0.5 ).mult( 1/scale );
+                    if ( layer.options.offset === 'center' ){
+                        offset.add( width * 0.5, height * 0.5 ).mult( 1/scale );
                     } else {
-                        offset.vadd( rocketLayer.options.offset ).mult( 1/scale );
+                        offset.vadd( layer.options.offset ).mult( 1/scale );
                     }
 
-                    if ( rocketLayer.options.follow ){
-                        offset.vsub( rocketLayer.options.follow.state.pos );
+                    if ( layer.options.follow ){
+                        offset.vsub( layer.options.follow.state.pos );
                     }
 
-                    ctx.clearRect(0, 0, rocketLayer.el.width, rocketLayer.el.height);
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.save();
+                    ctx.scale( scale, scale );
+                    rocket.drawBgTo(pos.get(0) + offset.get(0), pos.get(1) + offset.get(1), ctx, renderer);
+                    ctx.restore();
+                    mainRenderFn(false);
                     ctx.save();
                     ctx.scale( scale, scale );
                     rocket.drawTo(pos.get(0) + offset.get(0), pos.get(1) + offset.get(1), ctx, renderer);
@@ -452,9 +477,12 @@ define(
 
                 self.on('thrust', function( e, acc ){
                     
-                    rocket.thrust = true;
                     thrustAcc.clone( acc ).normalize();
-                    rocket.thrust = !thrustAcc.equals( Physics.vector.zero );
+                    if ( self.booster ){
+                        thrustAcc.add(0, -4);
+                    }
+                    rocket.thrust.clone( acc );
+                    rocket.booster = self.booster;
                 });
 
                 self.on('drag', Physics.util.throttle(function(ev, e){
@@ -471,12 +499,12 @@ define(
 
                 self.on('release', function( ev, e){
                     drag = false;
-                    rocket.thrust = false;
+                    rocket.thrust.zero();
+                    self.emit('thrust', rocket.thrust);
                 });
 
                 self.on('scale', function( ev, scale ){
                     renderer.layers.main.options({ scale: scale });
-                    rocketLayer.options({ scale: scale });
                 });
 
                 self.on('brakes', function(){
@@ -487,18 +515,15 @@ define(
 
                     rocket.moveTo( rocket.pos );
                     
-                    if ( rocket.thrust ){
-                        rocket.edge.body.state.acc.clone( thrustAcc ).mult( 0.0001 );
-                    } else if ( drag ) {
-
+                    if ( drag ) {
                         if ( self.grabMode ){
-                            rocket.edge.body.state.vel.clone( movePos ).vsub( rocket.pos ).mult( 1/throttleTime ).vadd( spaceCamBody.state.vel );
-                            movePos.vadd( spaceCamBody.state.vel.mult( data.dt ) );
-                            orig.vsub( spaceCamBody.state.vel );
-                            spaceCamBody.state.vel.mult( 1/data.dt );
+                            rocket.edge.body.state.vel.clone( movePos ).vsub( rocket.pos ).mult( 1/throttleTime );
                         } else {
                             rocket.edge.body.state.acc.clone( movePos ).vsub( rocket.edge.body.state.pos ).normalize().mult( 0.0001 );
+                            self.emit('thrust', rocket.edge.body.state.acc );
                         }
+                    } else if ( !thrustAcc.equals( Physics.vector.zero ) ){
+                        rocket.edge.body.state.acc.clone( thrustAcc ).mult( 0.0001 );
                     }
                 });
 
@@ -531,8 +556,9 @@ define(
                         ;
 
                     ctx.clearRect(0, 0, rocketCam.el.width, rocketCam.el.height);
-                    rocket.drawTo(offset.get(0), offset.get(1), ctx, renderer);
+                    rocket.drawBgTo(offset.get(0), offset.get(1), ctx, renderer);
                     oldRender( false );
+                    rocket.drawTo(offset.get(0), offset.get(1), ctx, renderer);
                 };
 
                 rocketCam
@@ -542,10 +568,8 @@ define(
                 // water
                 //
                 var water = []
-                    ,waterView = renderer.createView( Physics.geometry('circle', {radius: 3}), {
-                        strokeWidth: 0
-                        ,fillStyle: 'rgba(40, 136, 228, 0.85)'
-                    })
+                    ,waterIdx = 0
+                    ,waterViews = []
                     ,addWater = Physics.util.throttle(function(){
                         if ( !self.waterTog ){
                             return;
@@ -553,10 +577,10 @@ define(
                         var w = Physics.body('circle', {
                             tag: 'water'
                             ,x: - 45
-                            ,y: - 60
+                            ,y: 0
                             ,vx: 0.04
                             ,radius: 3
-                            ,view: waterView
+                            ,view: waterViews[ waterIdx ]
                         });
                         w.state.pos.vadd( rocket.edge.body.state.pos );
                         w.state.vel.vadd( rocket.edge.body.state.vel );
@@ -565,8 +589,16 @@ define(
                         renderer.layers.main.addToStack( w );
                         rocketCam.addToStack( w );
                         rocket.edge.applyTo( water.concat(sheep) );
+                        waterIdx = (waterIdx > 1)? 0 : waterIdx + 1;
                     }, 250)
                     ;
+
+                // water images
+                for ( i = 0, l = 3; i < l; ++i ){
+                    
+                    waterViews[ i ] = new Image();
+                    waterViews[ i ].src = require.toUrl('../../images/Water-'+(i+1)+'.png');
+                }
 
                 world.on('step', addWater);
 
@@ -677,34 +709,34 @@ define(
                     }
                     ,outerAABB = Physics.aabb(0, 0, 243, 549)
                     ,rocketImg = new Image()
-                    ,fires = [
-                        new Image()
-                        ,new Image()
-                        ,new Image()
-                    ]
-                    ,fireIdx = 0
+                    ,rocketBg = new Image()
+                    ,boosterFire = new Sprite([
+                        require.toUrl('../../images/Fire-1.png')
+                        ,require.toUrl('../../images/Fire-2.png')
+                        ,require.toUrl('../../images/Fire-3.png')
+                    ]).offset({ x: -5, y: 3 }).fps( 20 )
+                    ,thrusterFire = new Sprite([
+                        require.toUrl('../../images/Small-Fire-1.png')
+                        ,require.toUrl('../../images/Small-Fire-2.png')
+                        ,require.toUrl('../../images/Small-Fire-3.png')
+                    ]).fps( 20 )
+                    ,halfPi = Math.PI * 0.5
                     ;
 
                 rocketImg.src = require.toUrl('../../images/Rocket.png');
-                fires[0].src = require.toUrl('../../images/Fire-1.png');
-                fires[1].src = require.toUrl('../../images/Fire-2.png');
-                fires[2].src = require.toUrl('../../images/Fire-3.png');
-
-                var getThrustImg = Physics.util.throttle(function(){
-                    fireIdx = (fireIdx > 1)? 0 : fireIdx + 1;
-                    return fires[ fireIdx ];
-                }, 50);
-
+                rocketBg.src = require.toUrl('../../images/Rocket-bg.png');
+                
                 var ret = {
                     aabb: aabb
-                    ,thrust: false
+                    ,thrust: Physics.vector()
+                    ,booster: false
                     ,outerAABB: outerAABB
                     ,edge: edge
                     ,pos: edge.body.state.pos
                     ,moveTo: function( pos ){
                         ret.pos.clone( pos );
                         ret.aabb._pos.clone( pos );
-                        ret.outerAABB._pos.clone( pos ).add(0, 32);
+                        ret.outerAABB._pos.clone( pos ).add(0, 90);
                         ret.edge.setAABB( ret.aabb );
                         return ret;
                     }
@@ -713,13 +745,40 @@ define(
                         var fire;
 
                         ctx.save();
-                        ctx.translate(x, y + 32); // 32 is rocket img shim
-                        ctx.drawImage(rocketImg, -rocketImg.width/2, -rocketImg.height/2);
-                        if ( ret.thrust ){
-                            fire = getThrustImg();
-                            ctx.translate(0, 55);
-                            ctx.drawImage(fire, -fire.width/2, -fire.height/2);
+                        ctx.translate(x, y + 90); // 90 is rocket img shim
+
+                        if ( ret.thrust.get(1) > 0 ){
+                            // top left
+                            thrusterFire.drawTo( ctx, -45, -311, -halfPi );
+                            // top right
+                            thrusterFire.drawTo( ctx, 46, -311, -halfPi, true );
+                        } else if ( ret.thrust.get(1) < 0 ){
+                            // bottom left
+                            thrusterFire.drawTo( ctx, -40, 147, halfPi, true );
+                            // bottom right
+                            thrusterFire.drawTo( ctx, 42, 148, halfPi );
                         }
+
+                        if ( ret.thrust.get(0) > 0 ){
+                            // left
+                            thrusterFire.drawTo( ctx, -130, -89, 0, true );
+                        } else if ( ret.thrust.get(0) < 0 ){
+                            // right
+                            thrusterFire.drawTo( ctx, 130, -89, 0 );
+                        }
+                        
+                        ctx.drawImage(rocketImg, -rocketImg.width/2, -rocketImg.height/2);
+                        if ( ret.booster ){
+                            boosterFire.drawTo( ctx );
+                        }
+
+                        ctx.restore();
+                    }
+                    ,drawBgTo: function( x, y, ctx, renderer ){
+
+                        ctx.save();
+                        ctx.translate(x, y + 90); // 90 is rocket img shim
+                        ctx.drawImage(rocketBg, -rocketBg.width/2, -rocketBg.height/2);
                         ctx.restore();
                     }
                 };
@@ -736,8 +795,8 @@ define(
                     ,width = el.width
                     ,height = el.height
                     ,dir = Physics.vector()
-                    ,min = Physics.vector( 30, 30 )
-                    ,max = Physics.vector( width, height ).sub( 30, 30 )
+                    ,jsImg = new Image()
+                    ,jsBgImg = new Image()
                     ;
 
                 function clampNorm( v, max ){
@@ -751,21 +810,28 @@ define(
                 function draw( e, r ){
 
                     dir.clone( r );
-                    clampNorm( dir, width * 0.5 - 30 );
+                    clampNorm( dir, width * 0.5 - 49 );
                     dir.add( width * 0.5, height * 0.5 );
 
                     ctx.clearRect(0, 0, width, height);
-
-                    ctx.beginPath();
-                    ctx.strokeStyle = ctx.fillStyle = 'rgb(167, 42, 34)';
-                    ctx.arc(dir.get(0), dir.get(1), 30, 0, Math.PI * 2, false);
-                    ctx.closePath();
-                    ctx.stroke();
-                    ctx.fill();
+                    ctx.drawImage( jsBgImg, -1, -1 );
+                    ctx.save();
+                    ctx.translate( dir.get(0), dir.get(1) );
+                    ctx.drawImage( jsImg, -jsImg.width * 0.5, -jsImg.height * 0.5 );
+                    ctx.restore();
                 }
 
-                self.on('thrust', draw);
-                draw(null, dir);
+                when.map( [jsImg, jsBgImg], function( img ){
+                    var dfd = when.defer();
+                    img.onload = dfd.resolve;
+                    return dfd.promise;
+                }).then(function(){
+                    self.on('thrust', draw);
+                    draw(null, dir);
+                });
+
+                jsImg.src = require.toUrl('../../images/Joystick.png');
+                jsBgImg.src = require.toUrl('../../images/Joystick-bg.png');
             },
 
             /**
