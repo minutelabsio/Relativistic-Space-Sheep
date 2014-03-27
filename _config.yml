@@ -6,7 +6,7 @@ title : "Relativistic Space Sheep"
 id : "" # changeme
 description : "See the Equivalence Principal in action!"
 thumb: "thumb.gif" # changeme
-version: "0.0.2"
+version: "0.0.3"
 
 ml_url: "http://minutelabs.io"
 ml_library: "http://labs.minutelabs.io/library"
