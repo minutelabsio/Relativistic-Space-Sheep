@@ -647,6 +647,10 @@ define(
 
                 // periodic boundary
                 world.on('step', function(){
+
+                    if ( drag ){
+                        return;
+                    }
                     
                     var inv2scale = 0.5 / self.scale
                         ,i
