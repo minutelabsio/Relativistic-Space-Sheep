@@ -123,7 +123,7 @@ html, body, #wrap-outer {
 /* line 109, /Users/wellcaffeinated/Documents/github/minutelabs/Equivalence-Principal/library/styles/site.scss */
 #ctrl-grid {
   position: absolute;
-  top: 10px;
+  bottom: 290px;
   right: 10px;
   z-index: 100;
 }
