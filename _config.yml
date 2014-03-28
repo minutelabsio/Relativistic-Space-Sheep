@@ -4,7 +4,7 @@ exclude: ["README.md", "CNAME", "LICENSE", "build", "config.rb", "Gruntfile.js",
 
 title : "Relativistic Space Sheep"
 id : "" # changeme
-description : "See the Equivalence Principal in action!"
+description : "See the Equivalence Principle in action!"
 thumb: "thumb.gif" # changeme
 version: "0.0.3"
 
