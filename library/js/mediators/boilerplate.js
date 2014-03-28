@@ -22,6 +22,8 @@ define(
 
         'use strict';
 
+        var gridColor = 'rgba(100,100,100, 0.4)';
+
         function logerr( err ){
             window.console.error( err );
         }
@@ -88,6 +90,35 @@ define(
             }
             ;
 
+        function drawGrid( ctx, width, height, dx, dy ){
+            
+            var x = 0
+                ,y = 0
+                ,l
+                ,ox = width * 0.5
+                ,oy = height * 0.5
+                ;
+
+            ctx.beginPath();
+            for ( x = 0, l = width; x < l; x += dx ){
+                
+                ctx.moveTo(ox + x, 0);
+                ctx.lineTo(ox + x, height);
+                ctx.moveTo(ox - x, 0);
+                ctx.lineTo(ox - x, height);
+            }
+
+            for ( y = 0, l = height; y < l; y += dy ){
+                
+                ctx.moveTo(0, oy + y);
+                ctx.lineTo(width, oy + y);
+                ctx.moveTo(0, oy - y);
+                ctx.lineTo(width, oy - y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+
         /**
          * Page-level Mediator
          * @module Boilerplate
@@ -107,6 +138,7 @@ define(
                 self.minScale = 0.05;
                 self.maxScale = 1;
                 self.waterTog = true;
+                self.grid = false;
 
                 self.initEvents();
 
@@ -322,6 +354,11 @@ define(
                         self.emit('dismiss-instructions');
                         self.off(e.topic, e.handler);
                     });
+
+                    var ctrlGrid = hammer( document.getElementById('ctrl-grid') );
+                    ctrlGrid.on('touch', function( e ){
+                        self.grid = toggleClass(e.target, 'on');
+                    });
                 });
             },
 
@@ -446,8 +483,16 @@ define(
                     ctx.save();
                     ctx.scale( scale, scale );
                     rocket.drawTo(pos.get(0) + offset.get(0), pos.get(1) + offset.get(1), ctx, renderer);
+                    
+                    if ( self.grid ){
+                        ctx.strokeStyle = gridColor;
+                        ctx.strokeWidth = 0.5;
+                        drawGrid( ctx, width/scale, height/scale, 20, 20 );
+                    }
+
                     ctx.restore();
                     scratch.done();
+
                 };
 
                 // events
@@ -569,6 +614,12 @@ define(
                     ctx.scale( scale, scale );
                     rocket.drawTo(offset.get(0)/scale, offset.get(1)/scale, ctx, renderer);
                     ctx.restore();
+
+                    if ( self.grid ){
+                        ctx.strokeStyle = gridColor;
+                        ctx.strokeWidth = 0.5;
+                        drawGrid( ctx, rocketCam.el.width, rocketCam.el.height, 20, 20 );
+                    }
                 };
 
                 rocketCam
