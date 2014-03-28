@@ -3,7 +3,7 @@ markdown: rdiscount
 exclude: ["README.md", "CNAME", "LICENSE", "build", "config.rb", "Gruntfile.js", "package.json", "jshint.json"]
 
 title : "Relativistic Space Sheep"
-id : "" # changeme
+id : "80978581915"
 description : "See the Equivalence Principle in action!"
 thumb: "thumb.gif"
 version: "0.0.3"
