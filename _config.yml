@@ -1,7 +1,7 @@
 
 permalink: /:year-:month-:day/:title
 markdown: rdiscount
-exclude: ["README.md", "CNAME", "LICENSE", "build", "config.rb", "Gruntfile.js", "package.json", "jshint.json", "library"]
+exclude: ["README.md", "CNAME", "LICENSE", "build", "config.rb", "Gruntfile.js", "package.json", "jshint.json", "library/js"]
 
 title : "Relativistic Space Sheep"
 id : "80978581915"
