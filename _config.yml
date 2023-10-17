@@ -8,9 +8,9 @@ description : "See the Equivalence Principle in action!"
 thumb: "thumb.gif"
 version: "0.0.3"
 
-ml_url: "http://minutelabs.io"
-ml_library: "http://labs.minutelabs.io/library"
-ml_assets: "http://labs.minutelabs.io/assets"
+ml_url: "https://minutelabs.io"
+ml_library: "https://labs.minutelabs.io/library"
+ml_assets: "https://labs.minutelabs.io/assets"
 library_path: "library-build"
 
 show :
